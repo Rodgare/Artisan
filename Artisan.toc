@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: Artisan
+## Notes: Helps artisans make money
+## Author: Coda x3
+## Version: 1.0
+
+Artisan.lua
