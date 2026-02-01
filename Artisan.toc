@@ -3,5 +3,6 @@
 ## Notes: Helps artisans make money
 ## Author: Coda x3
 ## Version: 1.0
+## RequiredDeps: Auctionator
 
 Artisan.lua
