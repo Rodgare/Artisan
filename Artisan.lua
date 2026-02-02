@@ -55,9 +55,9 @@ local REAGENTS_FROM_VENDOR = {
 }
 
 local function FormatMoney(amount)
-    if not amount or amount <= 0 then 
-        return "0 |TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:2|t" 
-    end
+    -- if not amount or amount <= 0 then 
+    --     return "0 |TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:2|t" 
+    -- end
 
     local gold = math.floor(amount / 10000)
     local silver = math.floor((amount % 10000) / 100)
@@ -123,13 +123,13 @@ local function GetSellPrice()
 end
 
 local priceText = TradeSkillDetailScrollChildFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-priceText:SetPoint("TOPLEFT", TradeSkillDetailScrollChildFrame, "TOP", -14, -67)
+priceText:SetPoint("TOPLEFT", TradeSkillDetailScrollChildFrame, "TOPLEFT", 65, -47)
 
 local profitText = TradeSkillDetailScrollChildFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-profitText:SetPoint("TOPLEFT", TradeSkillDetailScrollChildFrame, "TOP", -14, -87)
+profitText:SetPoint("TOPLEFT", TradeSkillDetailScrollChildFrame, "TOPLEFT", 65, -60)
 
 local masterText = TradeSkillDetailScrollChildFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-masterText:SetPoint("TOPLEFT", TradeSkillDetailScrollChildFrame, "TOP", -14, -107)
+masterText:SetPoint("TOPLEFT", TradeSkillDetailScrollChildFrame, "TOPLEFT", 65, -107)
 
 hooksecurefunc("TradeSkillFrame_SetSelection", function(id)
     local currentCraftCost = GetCraftCost()
@@ -138,9 +138,10 @@ hooksecurefunc("TradeSkillFrame_SetSelection", function(id)
     priceText:SetText("|cffffd100Крафт:|r " .. FormatMoney(currentCraftCost))
 
     local profit = sellPrice - currentCraftCost
-    profitText:SetText("|cffffd100Профит:|r " .. FormatMoney(profit) .. "|r")
+    print(profit)
+    profitText:SetText("|cffffd100Доход:|r " .. FormatMoney(profit) .. "|r")
 
-    local masterProfit = (sellPrice * 1.2) - currentCraftCost
-    masterText:SetText("|cffffd100Мастер (x1.2):|r " .. FormatMoney(masterProfit))
+    -- local masterProfit = (sellPrice * 1.2) - currentCraftCost
+    -- masterText:SetText("|cffffd100Мастер (x1.2):|r " .. FormatMoney(masterProfit))
 end)
 
