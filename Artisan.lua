@@ -1,3 +1,12 @@
+--Скрытие цены стоимости крафта Auctionator
+if AuctionatorReagentSearchButtonMixin then
+    function AuctionatorReagentSearchButtonMixin:UpdateTotal()
+    end
+    print("|cff00ff00Artisan:|r Текст Auctionator успешно заблокирован.")
+else
+    print("|cffff0000Artisan:|r Не удалось найти Auctionator для блокировки.")
+end
+
 local REAGENTS_FROM_VENDOR = {
     -- === АЛХИМИЯ И НАЧЕРТАНИЕ (Колбы и Пергаменты) ===
     ["3371"]  = 2,   -- Пустая колба
