@@ -3,6 +3,8 @@
 ## Notes: Helps artisans make money
 ## Author: Coda x3
 ## Version: 1.0
+## SavedVariables: ArtisanSettings
 ## RequiredDeps: Auctionator
 
 Artisan.lua
+MinimapButton.lua
