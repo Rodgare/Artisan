@@ -1,0 +1,10 @@
+{
+    "flavors": [
+        "classic"
+    ],
+    "diagnostics": {
+        "enable": [
+            "need-check-nil"
+        ]
+    }
+}

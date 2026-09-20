@@ -1,0 +1,17 @@
+## Interface: 30300
+## Title: Artisan
+## Notes: Помощник ремесленника
+## Author: Coda
+## Version: 1.0
+## SavedVariables: ArtisanDB
+## OptionalDeps: Auctionator
+## X-Sirus-Update: https://github.com/rodgare/Artisan/tree/main
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+Database\AuctionatorAPI.lua
+UI\MiniMapButton.lua
+Artisan.lua
