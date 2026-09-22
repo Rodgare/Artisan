@@ -6,11 +6,12 @@
   
     "Lua.workspace.library": [
       "C:\\Games\\World of Warcraft Sirus\\Interface\\AddOns\\APIDocumentation\\Documentation",
-      "~\\.vscode\\extensions\\ketho.wow-api-0.22.3\\Annotations\\Core"
+      "c:\\Users\\axel1\\.antigravity-ide\\extensions\\ketho.wow-api-0.22.3\\Annotations\\Core"
     ],
   
     "Lua.diagnostics.disable": [
-      "param-type-mismatch"
+      "param-type-mismatch",
+      "undefined-global"
     ],
   
     "Lua.runtime.builtin": {

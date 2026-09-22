@@ -1,23 +1,18 @@
 local addonName, Artisan = ...
 
-local window = CreateFrame("Frame", "ArtisanMainWindow", UIParent)
-Artisan.window = window
+SLASH_ARTISAN1 = "/artisan"
+SLASH_ARTISAN2 = "/art"
 
-window:SetSize(400, 400)
-window:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+SlashCmdList["ARTISAN"] = function(msg)
+    local itemID = tonumber(msg) or 36901
+    local price = Artisan.Auctionator:GetItemPrice(itemID)
+    ---@diagnostic disable-next-line: deprecated
+    local _, itemLink = GetItemInfo(itemID)
 
-window:Hide()
-
-local bg = window:CreateTexture(nil, "BACKGROUND")
-bg:SetAllPoints(window)
-bg:SetTexture(0, 0, 0, 0.8)
-
-window:EnableMouse(true)
-window:SetMovable(true)
-window:RegisterForDrag("LeftButton")
-window:SetScript("OnDragStart", window.StartMoving)
-window:SetScript("OnDragStop", window.StopMovingOrSizing)
-
-local title = window:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-title:SetPoint("TOP", window, "TOP", 0, -10)
-title:SetText("window 400x400px")
+    if price then
+        local formattedPrice = Artisan.Utils:FormatMoney(price)
+        DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[Artisan]:|r Цена %s: %s", itemLink or ("ID " .. itemID), formattedPrice))
+    else
+        DEFAULT_CHAT_FRAME:AddMessage(string.format("|cffff0000[Artisan]:|r Для предмета %s нет данных в Auctionator!", itemLink or ("ID " .. itemID)))
+    end
+end
