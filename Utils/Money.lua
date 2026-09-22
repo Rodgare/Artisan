@@ -2,23 +2,19 @@ local addonName, Artisan = ...
 
 Artisan.Utils = Artisan.Utils or {}
 
--- @param copper number 
--- @return string
 function Artisan.Utils:FormatMoney(copper)
-    if not copper or copper <= 0 then
-        return "|cff808080Нет данных|r"
-    end
+    if not copper or copper == 0 then return "0г" end
+    -- 1. Запоминаем знак и берем абсолютное значение
+    local isNegative = copper < 0
+    local absCopper = math.abs(copper)
+    -- 2. Считаем золото, серебро и медь от положительного числа
+    local gold = math.floor(absCopper / 10000)
+    local silver = math.floor((absCopper % 10000) / 100)
 
-    local gold = math.floor(copper / 10000)
-    local silver = math.floor((copper % 10000) / 100)
-
-    local result = ""
-    if gold > 0 then
-        result = result .. string.format("|cffffd700%d|rg ", gold)
+    local result = string.format("|cffffd700%d|rг |cffc7c7cf%02d|rc", gold, silver)
+    -- 3. Добавляем минус, если убыток
+    if isNegative then
+        return "-" .. result
     end
-    if silver > 0 or gold > 0 then
-        result = result .. string.format("|cffc7c7cf%d|rs ", silver)
-    end
-
     return result
 end

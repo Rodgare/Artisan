@@ -24,14 +24,15 @@ mainFrame:SetScript("OnEvent", function(self, event, addonName)
 
             OnClick = function(_, button)
                 if button == "LeftButton" then
-                    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r Привет! Ты нажал на кнопку!")
+                    if not (Artisan.UI and Artisan.UI.MainFrame) then
+                        Artisan.UI:CreateMainWindow()
+                    end
 
-                    if Artisan.window then
-                        if Artisan.window:IsShown() then
-                            Artisan.window:Hide()
-                        else
-                            Artisan.window:Show()
-                        end
+                    local frame = Artisan.UI.MainFrame
+                    if frame:IsShown() then
+                        frame:Hide()
+                    else
+                        frame:Show()
                     end
                 elseif button == "RightButton" then
                     DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Иконку можно вернуть командой в чате.")
@@ -41,6 +42,5 @@ mainFrame:SetScript("OnEvent", function(self, event, addonName)
 
         local iconLib = LibStub("LibDBIcon-1.0")
         iconLib:Register("Artisan", LDB, ArtisanDB.minimap)
-
     end
 end)
