@@ -1,2 +1,7 @@
 .vscode/*
 parseRecipes.go
+spell_dbc.sql
+DBCParser.go
+Temp/SkillLine.json
+Temp/SkillLineAbility.json
+Temp/Spell.json

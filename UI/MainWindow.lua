@@ -116,8 +116,38 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     scrollFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -60)
     scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -32, 10)
 
+    local header = CreateFrame("Frame", nil, parentFrame)
+    header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -38)
+    header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -32, -38)
+    header:SetHeight(20)
+
+    local columns = {
+        { key = "name", text = "Рецепт", x = 120, width = 240, align = "LEFT" },
+        { key = "cost", text = "Затраты", x = 300, width = 120, align = "RIGHT" },
+        { key = "sell", text = "Продажа", x = 440, width = 120, align = "RIGHT" },
+        { key = "profit", text = "Прибыль", x = 580, width = 140, align = "RIGHT" },
+    }
+    for _, col in ipairs(columns) do
+        local btn = CreateFrame("Button", nil, header)
+        btn:SetSize(col.width, 18)
+        btn:SetPoint("LEFT", header, "LEFT", col.x, 0)
+        local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        txt:SetAllPoints(btn)
+        txt:SetText(col.text)
+        txt:SetJustifyH(col.align)
+        txt:SetTextColor(0.7, 0.7, 0.7)
+        btn:SetScript("OnEnter", function() txt:SetTextColor(1, 1, 1) end)
+        btn:SetScript("OnLeave", function() txt:SetTextColor(0.7, 0.7, 0.7) end)
+
+        btn:SetScript("OnClick", function()
+            --TODO SORT
+        end)
+    end
+
     self.RowFrames = {}
-    local ROW_HEIGHT = 21;
+
+    local ROW_HEIGHT = 21
+
     for i = 1, 20 do
         local row = CreateFrame("Button", nil, parentFrame)
         row:SetSize(750, ROW_HEIGHT)

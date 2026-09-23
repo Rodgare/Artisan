@@ -10,7 +10,7 @@ local function PrintSelectedRecipeReagents()
     for i = 1, numReagents do
         local name, _, count = GetTradeSkillReagentInfo(selectionIndex, i)
         local link = GetTradeSkillReagentItemLink(selectionIndex, i)
-        
+
         local itemID = link and tonumber(link:match("item:(%d+)"))
 
         print(string.format("  Реагент %d: %s (x%d) [ID: %s]", i, name or "???", count or 0, itemID or "nil"))
@@ -18,8 +18,6 @@ local function PrintSelectedRecipeReagents()
 end
 
 local function OnTradeSkillLoaded()
-    print("[Artisan]: Модуль профессий готов к работе!")
-
     if TradeSkillFrame_SetSelection then
         hooksecurefunc("TradeSkillFrame_SetSelection", function(index)
             PrintSelectedRecipeReagents()
