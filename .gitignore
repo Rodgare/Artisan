@@ -5,3 +5,4 @@ DBCParser.go
 Temp/SkillLine.json
 Temp/SkillLineAbility.json
 Temp/Spell.json
+Scripts/*
