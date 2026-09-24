@@ -180,7 +180,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.sell:SetWidth(120)
         row.sell:SetJustifyH("RIGHT")
 
-        row.profit = row:CreateFontString(nil, "OVERLAY", "GameFontGreenSmall")
+        row.profit = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         row.profit:SetPoint("LEFT", row, "LEFT", 580, 0)
         row.profit:SetWidth(140)
         row.profit:SetJustifyH("RIGHT")
@@ -189,12 +189,11 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         row:SetScript("OnEnter", function(self)
             if not self.data then return end
+
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            if self.data.isSpell then
-                GameTooltip:SetSpellByID(self.data.id)
-            else
-                GameTooltip:SetHyperlink("item:" .. self.data.id)
-            end
+
+            GameTooltip:SetHyperlink("item:" .. self.data.itemID)
+            -- print(self.data.itemID)
             GameTooltip:Show()
         end)
         row:SetScript("OnLeave", function()
@@ -232,8 +231,9 @@ function Artisan.UI:SelectProfession(profID)
 
     local list = {}
 
-    for craftID, data in pairs(rawRecipes) do
+    for spellID, data in pairs(rawRecipes) do
         local totalCost = 0
+
         if data.reagents then
             for reagentID, count in pairs(data.reagents) do
                 local price = Artisan.Auctionator:GetItemPrice(reagentID) or 0
@@ -241,12 +241,12 @@ function Artisan.UI:SelectProfession(profID)
             end
         end
 
-        local sellPrice = Artisan.Auctionator:GetItemPrice(craftID) or 0
+        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
         local profit = (sellPrice * 0.95) - totalCost --0.95 auc % TODO проверить
 
         table.insert(list, {
-            id = craftID,
-            isSpell = data.isSpell,
+            spellID = spellID,
+            itemID = data.itemID,
             cost = totalCost,
             sell = sellPrice,
             profit = profit,
@@ -277,19 +277,15 @@ function Artisan.UI:UpdateScroll()
         if data then
             row:Show()
 
-            local itemName, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(data.id)
+            local itemName, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(data.itemID)
 
             row.icon:SetTexture(itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
-            row.name:SetText(itemName or ("ID: " .. data.id))
+            row.name:SetText(itemName or ("ID: " .. data.itemID))
             row.cost:SetText(Artisan.Utils:FormatMoney(data.cost))
             row.sell:SetText(Artisan.Utils:FormatMoney(data.sell))
-            row.data = data
+            row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
 
-            if data.profit > 0 then
-                row.profit:SetText("|cff00ff00+" .. Artisan.Utils:FormatMoney(data.profit) .. "|r")
-            else
-                row.profit:SetText("|cffff0000" .. Artisan.Utils:FormatMoney(data.profit) .. "|r")
-            end
+            row.data = data
         else
             row:Hide()
         end
