@@ -66,7 +66,6 @@ function Artisan.UI:CreateTopBar(parentFrame)
         local btn = CreateFrame("Button", nil, topBar)
         btn:SetPoint("LEFT", topBar, "LEFT", (idx - 1) * 32, -3)
         btn:SetSize(28, 28)
-        -- btn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
 
         local border = btn:CreateTexture(nil, "OVERLAY")
         border:SetSize(60, 60)
