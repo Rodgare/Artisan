@@ -3,7 +3,7 @@ local addonName, Artisan = ...
 Artisan.UI = Artisan.UI or {}
 
 local ROW_HEIGHT = 21
-local VISIBLE_ROWS = 20
+local VISIBLE_ROWS = 23
 local WHEEL_STEP = 5
 
 local CATEGORY_ROWS_MAX = 6
@@ -205,13 +205,13 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end)
 
     local header = CreateFrame("Frame", nil, parentFrame)
-    header:SetPoint("TOPLEFT", filterBox, "BOTTOMLEFT", 0, -4)
+    header:SetPoint("TOPLEFT", filterBox, "BOTTOMLEFT", 0, -10)
     header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, 0)
     header:SetHeight(20)
 
     local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame", parentFrame)
     scrollFrame:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
-    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 10)
+    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 30)
 
     self.ColumnHeaders = {}
     for _, col in ipairs(COLUMNS) do
