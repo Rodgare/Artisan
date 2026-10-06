@@ -6,6 +6,11 @@ local ROW_HEIGHT = 21
 local VISIBLE_ROWS = 20
 local WHEEL_STEP = 3
 
+-- Фиксированная высота области категорий (рядов), чтобы раскладка не прыгала
+-- при переключении проффессий. Категории переносятся в пределах этих рядов.
+local CATEGORY_ROWS_MAX = 4
+local CATEGORY_ROW_HEIGHT = 24
+
 local COLUMNS = {
     { key = "name",   text = "Рецепт",   x = 120, width = 240, align = "LEFT",  sortKey = "itemName" },
     { key = "cost",   text = "Затраты",  x = 300, width = 120, align = "RIGHT", sortKey = "cost" },
@@ -18,7 +23,7 @@ function Artisan.UI:CreateMainWindow()
 
     local frame = CreateFrame("Frame", "ArtisanMainFrame", UIParent)
     tinsert(UISpecialFrames, "ArtisanMainFrame")
-    frame:SetSize(800, 515)
+    frame:SetSize(800, 600)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("FULLSCREEN")
 
@@ -71,7 +76,8 @@ function Artisan.UI:CreateTopBar(parentFrame)
     local topBar = CreateFrame("Frame", "TopBar", parentFrame)
     topBar:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 4, 0)
     topBar:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -5, -5)
-    topBar:SetHeight(30)
+    topBar:SetHeight(30 + (CATEGORY_ROWS_MAX - 1) * CATEGORY_ROW_HEIGHT)
+    self.TopBar = topBar
 
     for idx, prof in ipairs(PROFESSIONS) do
         local btn = CreateFrame("Button", nil, topBar)
@@ -118,12 +124,18 @@ function Artisan.UI:CreateTopBar(parentFrame)
     closeBtn:SetScript("OnEnter", function() text:SetTextColor(1, 0.3, 0.3) end)
     closeBtn:SetScript("OnLeave", function() text:SetTextColor(0.6, 0.6, 0.6) end)
     closeBtn:SetScript("OnClick", function() parentFrame:Hide() end)
+
+    local categoryBar = CreateFrame("Frame", nil, topBar)
+    categoryBar:SetPoint("TOPLEFT", topBar, "TOPLEFT", 326, -4)
+    categoryBar:SetPoint("TOPRIGHT", topBar, "TOPRIGHT", -35, -4)
+    categoryBar:SetHeight(CATEGORY_ROWS_MAX * CATEGORY_ROW_HEIGHT)
+    self.CategoryBar = categoryBar
 end
 
 function Artisan.UI:CreateRecipeList(parentFrame)
     local filterBox = CreateFrame("EditBox", nil, parentFrame, "InputBoxTemplate")
     filterBox:SetSize(220, 20)
-    filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -38)
+    filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -118)
     filterBox:SetAutoFocus(false)
     filterBox:SetTextInsets(4, 4, 0, 0)
 
@@ -136,14 +148,14 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         Artisan.UI:SetFilter(self:GetText())
     end)
 
-    local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame", parentFrame)
-    scrollFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -88)
-    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 18)
-
     local header = CreateFrame("Frame", nil, parentFrame)
-    header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -64)
-    header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, -64)
+    header:SetPoint("TOPLEFT", filterBox, "BOTTOMLEFT", 0, -4)
+    header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, 0)
     header:SetHeight(20)
+
+    local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame", parentFrame)
+    scrollFrame:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
+    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 10)
 
     self.ColumnHeaders = {}
     for _, col in ipairs(COLUMNS) do
@@ -292,8 +304,89 @@ function Artisan.UI:SelectProfession(profID)
         self.SortDir = -1
     end
 
+    self.GroupFilter = nil
+    self:BuildCategoryBar()
     self:RefreshList()
     self:RefreshColumnHeaders()
+end
+
+function Artisan.UI:SetGroup(group)
+    self.GroupFilter = group or nil
+    self:RefreshList()
+    self:BuildCategoryBar()
+end
+
+function Artisan.UI:BuildCategoryBar()
+    if not self.CategoryBar or not self.FullList then return end
+
+    for _, btn in ipairs(self.CategoryButtons or {}) do
+        btn:Hide()
+    end
+    self.CategoryButtons = {}
+
+    local seen = {}
+    local groups = {}
+    for _, row in ipairs(self.FullList) do
+        local g = row.group or "Прочее"
+        if not seen[g] then
+            seen[g] = true
+            tinsert(groups, g)
+        end
+    end
+    table.sort(groups, function(a, b) return a < b end)
+
+    local ALL = "Все"
+    local labels = { ALL }
+    for _, g in ipairs(groups) do labels[#labels + 1] = g end
+
+    local bar = self.CategoryBar
+    local pad = 8
+    local maxX = math.max(100, bar:GetWidth() or 400)
+
+    local x = 0
+    local y = 0
+    for _, label in ipairs(labels) do
+        local btn = CreateFrame("Button", nil, bar)
+        btn:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -y)
+        btn:SetHeight(18)
+
+        local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        txt:SetPoint("LEFT", btn, "LEFT", 2, 0)
+        txt:SetPoint("RIGHT", btn, "RIGHT", -2, 0)
+        txt:SetText(label)
+        txt:SetJustifyH("LEFT")
+        btn.txt = txt
+
+        local active = (self.GroupFilter or ALL) == label
+        if active then
+            txt:SetTextColor(1, 0.82, 0)
+        else
+            txt:SetTextColor(0.7, 0.7, 0.7)
+        end
+
+        btn:SetScript("OnClick", function(self)
+            Artisan.UI:SetGroup(self.label == ALL and nil or self.label)
+        end)
+        btn.label = label
+
+        local w = txt:GetStringWidth() + 8
+        if w < 30 then w = 30 end
+        if x + w + pad > maxX and x > 0 then
+            x = 0
+            y = y + CATEGORY_ROW_HEIGHT
+        end
+
+        -- Не рисуем за пределами зарезервированной области категорий,
+        -- чтобы раскладка окна оставалась фиксированной.
+        if y + CATEGORY_ROW_HEIGHT > CATEGORY_ROWS_MAX * CATEGORY_ROW_HEIGHT then
+            btn:Hide()
+        else
+            btn:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -y)
+            btn:SetWidth(w)
+            x = x + w + pad
+            tinsert(self.CategoryButtons, btn)
+        end
+    end
 end
 
 function Artisan.UI:SetFilter(text)
@@ -315,12 +408,17 @@ end
 function Artisan.UI:RefreshList()
     if not self.FullList then return end
 
-    local list = self.FullList
+    local list = {}
     local filter = (self.FilterText or ""):lower()
-    if filter ~= "" then
-        list = {}
-        for _, row in ipairs(self.FullList) do
-            if row.itemName and row.itemName:lower():find(filter, 1, true) then
+    local group = self.GroupFilter
+    for i = 1, #self.FullList do
+        local row = self.FullList[i]
+        if row then
+            if group and (row.group or "Прочее") ~= group then
+                -- skip: не из выбранной категории
+            elseif filter ~= "" and not (row.itemName and row.itemName:lower():find(filter, 1, true)) then
+                -- skip: не совпало с поиском
+            else
                 tinsert(list, row)
             end
         end
