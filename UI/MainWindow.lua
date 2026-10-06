@@ -17,7 +17,7 @@ local COLUMNS = {
 }
 
 local REAGENT_ICON_SIZE = 16
-local REAGENT_ICON_GAP = 16
+local REAGENT_ICON_GAP = 2
 local MAX_REAGENT_ICONS = 5
 local REAGENT_X = 240
 
@@ -286,9 +286,9 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
             slot.tex = tex
             local count = slot:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            count:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", 16, 0)
+            count:SetPoint("LEFT", slot, "RIGHT", 1, 0)
             count:SetTextColor(1, 1, 1)
-            count:SetShadowColor(0, 0, 0, 2)
+            -- count:SetShadowColor(0, 0, 0, 2)
             count:SetShadowOffset(1, -1)
             slot.count = count
             slot:Hide()
@@ -324,7 +324,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         row:SetScript("OnEnter", function(self)
             if not self.data then return end
-            GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
             GameTooltip:SetHyperlink("item:" .. self.data.itemID)
             GameTooltip:Show()
         end)
@@ -674,14 +674,18 @@ function Artisan.UI:UpdateScroll()
             row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
 
             local reagents = data.reagents
+            local x = REAGENT_X
             for r = 1, MAX_REAGENT_ICONS do
                 local slot = row.reagentSlots[r]
                 local rg = reagents and reagents[r]
                 if rg then
                     slot.data = rg
+                    slot:ClearAllPoints()
+                    slot:SetPoint("LEFT", row, "LEFT", x, 0)
                     slot.tex:SetTexture(rg.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
                     slot.count:SetText(rg.count)
                     slot:Show()
+                    x = x + REAGENT_ICON_SIZE + 1 + slot.count:GetStringWidth() + REAGENT_ICON_GAP
                 else
                     slot.data = nil
                     slot:Hide()
