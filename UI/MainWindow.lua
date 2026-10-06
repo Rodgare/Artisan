@@ -6,8 +6,8 @@ local ROW_HEIGHT = 21
 local VISIBLE_ROWS = 20
 local WHEEL_STEP = 5
 
-local CATEGORY_ROWS_MAX = 3
-local CATEGORY_ROW_HEIGHT = 30
+local CATEGORY_ROWS_MAX = 6
+local CATEGORY_ROW_HEIGHT = 15
 
 local COLUMNS = {
     { key = "name",   text = "Рецепт",   x = 120, width = 240, align = "LEFT",  sortKey = "itemName" },
@@ -72,14 +72,14 @@ local PROFESSIONS = {
 
 function Artisan.UI:CreateTopBar(parentFrame)
     local topBar = CreateFrame("Frame", "TopBar", parentFrame)
-    topBar:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 4, 0)
+    topBar:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 5, 5)
     topBar:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -5, -5)
-    topBar:SetHeight(30 + (CATEGORY_ROWS_MAX - 1) * CATEGORY_ROW_HEIGHT)
+    topBar:SetHeight((CATEGORY_ROWS_MAX - 1) * CATEGORY_ROW_HEIGHT)
     self.TopBar = topBar
 
     for idx, prof in ipairs(PROFESSIONS) do
         local btn = CreateFrame("Button", nil, topBar)
-        btn:SetPoint("LEFT", topBar, "LEFT", (idx - 1) * 32, -3)
+        btn:SetPoint("LEFT", topBar, "LEFT", (idx - 1) * 32, 13)
         btn:SetSize(28, 28)
 
         local border = btn:CreateTexture(nil, "OVERLAY")
@@ -124,8 +124,8 @@ function Artisan.UI:CreateTopBar(parentFrame)
     closeBtn:SetScript("OnClick", function() parentFrame:Hide() end)
 
     local categoryBar = CreateFrame("Frame", nil, topBar)
-    categoryBar:SetPoint("TOPLEFT", topBar, "TOPLEFT", 326, -4)
-    categoryBar:SetPoint("TOPRIGHT", topBar, "TOPRIGHT", -35, -4)
+    categoryBar:SetPoint("TOPLEFT", topBar, "TOPLEFT", 330, -8)
+    categoryBar:SetPoint("TOPRIGHT", topBar, "TOPRIGHT", -10, -4)
     categoryBar:SetHeight(CATEGORY_ROWS_MAX * CATEGORY_ROW_HEIGHT)
     self.CategoryBar = categoryBar
 end
