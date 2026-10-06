@@ -49,6 +49,10 @@ function Artisan.UI:CreateMainWindow()
         self:StopMovingOrSizing()
     end)
 
+    frame:SetScript("OnShow", function()
+        Artisan.UI:InitList()
+    end)
+
     frame:Hide()
 
     Artisan.UI.MainFrame = frame
@@ -101,13 +105,19 @@ function Artisan.UI:CreateTopBar(parentFrame)
             GameTooltip:Show()
         end)
         btn:SetScript("OnLeave", function(self)
-            border:Hide()
+            local selected = Artisan.UI.SelectedProfessions or {}
+            if not selected[prof.id] then
+                border:Hide()
+            end
             GameTooltip:Hide()
         end)
 
         btn:SetScript("OnClick", function()
-            Artisan.UI:SelectProfession(prof.id)
+            Artisan.UI:ToggleProfession(prof.id)
         end)
+
+        self.ProfessionButtons = self.ProfessionButtons or {}
+        self.ProfessionButtons[prof.id] = { button = btn, border = border }
     end
 
     local closeBtn = CreateFrame("Button", nil, parentFrame)
@@ -286,16 +296,40 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     self.ScrollFrame = scrollFrame
 end
 
-function Artisan.UI:SelectProfession(profID)
-    self.ProfessionID = profID
+function Artisan.UI:InitList()
+    if not Artisan.Pricing then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль Pricing не загружен. Полностью перезапусти клиент (не только /reload).")
+        return
+    end
+    if self.Initialized then return end
 
+    self.Initialized = true
+    if not self.SortKey then
+        self.SortKey = "profit"
+        self.SortDir = -1
+    end
+
+    self:RebuildFullList()
+    self:BuildCategoryBar()
+    self:RefreshList()
+    self:RefreshColumnHeaders()
+end
+
+function Artisan.UI:ToggleProfession(profID)
     if not Artisan.Pricing then
         DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль Pricing не загружен. Полностью перезапусти клиент (не только /reload).")
         return
     end
 
-    self.FullList = Artisan.Pricing:GetProfessionList(profID)
-    if not self.FullList then return end
+    self.SelectedProfessions = self.SelectedProfessions or {}
+    if self.SelectedProfessions[profID] then
+        self.SelectedProfessions[profID] = nil
+    else
+        self.SelectedProfessions[profID] = true
+    end
+
+    self:RefreshProfessionSelection()
+    self:RebuildFullList()
 
     if not self.SortKey then
         self.SortKey = "profit"
@@ -308,10 +342,49 @@ function Artisan.UI:SelectProfession(profID)
     self:RefreshColumnHeaders()
 end
 
+function Artisan.UI:RebuildFullList()
+    local selected = self.SelectedProfessions or {}
+    local profs = {}
+
+    if next(selected) then
+        for id in pairs(selected) do
+            tinsert(profs, id)
+        end
+    else
+        for _, prof in ipairs(PROFESSIONS) do
+            tinsert(profs, prof.id)
+        end
+    end
+
+    local list = {}
+    for _, id in ipairs(profs) do
+        local plist = Artisan.Pricing:GetProfessionList(id)
+        if plist then
+            for _, row in ipairs(plist) do
+                tinsert(list, row)
+            end
+        end
+    end
+
+    self.FullList = list
+end
+
 function Artisan.UI:SetGroup(group)
     self.GroupFilter = group or nil
     self:RefreshList()
     self:BuildCategoryBar()
+end
+
+function Artisan.UI:RefreshProfessionSelection()
+    if not self.ProfessionButtons then return end
+    local selected = self.SelectedProfessions or {}
+    for id, entry in pairs(self.ProfessionButtons) do
+        if selected[id] then
+            entry.border:Show()
+        else
+            entry.border:Hide()
+        end
+    end
 end
 
 function Artisan.UI:BuildCategoryBar()

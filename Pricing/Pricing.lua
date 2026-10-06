@@ -5,16 +5,18 @@ Artisan.Pricing = Artisan.Pricing or {}
 local lists = {}
 local nameCache = {}
 local textureCache = {}
+local itemTypeCache = {}
 local subTypeCache = {}
 
 local function GetItemInfoCached(itemID)
     if nameCache[itemID] == nil then
-        local name, _, _, _, _, _, subType, _, _, texture = GetItemInfo(itemID)
+        local name, _, _, _, _, itemType, subType, _, _, texture = GetItemInfo(itemID)
         nameCache[itemID] = name
         textureCache[itemID] = texture
+        itemTypeCache[itemID] = itemType
         subTypeCache[itemID] = subType
     end
-    return nameCache[itemID], textureCache[itemID], subTypeCache[itemID]
+    return nameCache[itemID], textureCache[itemID], itemTypeCache[itemID], subTypeCache[itemID]
 end
 
 function Artisan.Pricing:BuildProfessionList(profID)
@@ -34,14 +36,15 @@ function Artisan.Pricing:BuildProfessionList(profID)
         local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
         local profit = (sellPrice * 0.95) - totalCost -- 0.95 % аукциона
 
-        local itemName, itemTexture, itemSubType = GetItemInfoCached(data.itemID)
+        local itemName, itemTexture, itemType, itemSubType = GetItemInfoCached(data.itemID)
 
         tinsert(list, {
             spellID = spellID,
             itemID = data.itemID,
+            profID = profID,
             itemName = itemName,
             itemTexture = itemTexture,
-            group = Artisan.Categories:GetGroup(profID, itemName, itemSubType),
+            group = Artisan.Categories:GetGroup(profID, itemName, itemType, itemSubType),
             cost = totalCost,
             sell = sellPrice,
             profit = profit,

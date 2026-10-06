@@ -2,35 +2,27 @@ local addonName, Artisan = ...
 
 Artisan.Categories = Artisan.Categories or {}
 
-local fallbackRules = {
-    Alchemy = {
-        { "Эликсир", "Эликсиры" },
-        { "Флакон", "Флаконы" },
-        { "Зелье", "Зелья" },
-        { "Масло", "Масла" },
-        { "Настой", "Настои" },
-    },
-    Cooking = {
-        { "Пир", "Пиры" },
-        { "Блюдо", "Блюда" },
-        { "Десерт", "Десерты" },
-        { "Напиток", "Напитки" },
-    },
+local useClass = {
+    ["Сумки"] = true,
+    ["Снаряжение"] = true,
+    ["Боеприпасы"] = true,
+    ["Самоцветы"] = true,
+    ["Зелья"] = true,
+    ["Еда и напитки"] = true,
+    ["Эликсиры"] = true,
+    ["Настойки"] = true,
 }
 
--- @return string
-function Artisan.Categories:GetGroup(profID, itemName, itemSubType)
-    if itemSubType and itemSubType ~= "" then
-        return itemSubType
+function Artisan.Categories:GetGroup(profID, itemName, itemType, itemSubType)
+    if itemType and itemType ~= "" then
+        if not useClass[itemType] and itemSubType and itemSubType ~= "" then
+            return itemSubType
+        end
+        return itemType
     end
 
-    local rules = fallbackRules[profID]
-    if rules and itemName then
-        for _, rule in ipairs(rules) do
-            if strfind(itemName, rule[1], 1, true) then
-                return rule[2]
-            end
-        end
+    if itemSubType and itemSubType ~= "" then
+        return itemSubType
     end
 
     return "Прочее"
