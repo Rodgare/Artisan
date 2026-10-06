@@ -15,6 +15,7 @@ Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 Database\RecipeDB.lua
 Utils\Money.lua
 Database\AuctionatorAPI.lua
+Pricing\Pricing.lua
 UI\TradeSkill.lua
 Artisan.lua
 UI\MainWindow.lua

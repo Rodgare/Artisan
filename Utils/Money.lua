@@ -2,19 +2,31 @@ local addonName, Artisan = ...
 
 Artisan.Utils = Artisan.Utils or {}
 
+local function GroupGold(gold)
+    local s = tostring(gold)
+    local out = {}
+    local count = 0
+    for i = #s, 1, -1 do
+        count = count + 1
+        tinsert(out, 1, s:sub(i, i))
+        if count % 3 == 0 and i > 1 then
+            tinsert(out, 1, " ")
+        end
+    end
+    return table.concat(out)
+end
+
 function Artisan.Utils:FormatMoney(copper)
-    if not copper or copper <= 1000 then return "0г" end
+    if not copper or copper == 0 then return "0г" end
 
-    local isNegative = copper < 0
-    local absCopper = math.abs(copper)
+    local sign = ""
+    if copper < 0 then
+        sign = "-"
+        copper = -copper
+    end
 
-    local gold = math.floor(absCopper / 10000)
-    -- local silver = math.floor((absCopper % 10000) / 100)
+    local gold = math.floor(copper / 10000)
+    if gold < 1 then return sign .. "0г" end
 
-    local result = string.format("%dг", gold)
-
-    -- if isNegative then
-    --     return "-" .. result
-    -- end
-    return result
+    return sign .. GroupGold(gold) .. "г"
 end

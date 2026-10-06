@@ -1,0 +1,70 @@
+local addonName, Artisan = ...
+
+Artisan.Pricing = Artisan.Pricing or {}
+
+local lists = {}
+local nameCache = {}
+local textureCache = {}
+
+local function GetItemInfoCached(itemID)
+    if nameCache[itemID] == nil then
+        local name, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemID)
+        nameCache[itemID] = name
+        textureCache[itemID] = texture
+    end
+    return nameCache[itemID], textureCache[itemID]
+end
+
+-- Строит обогащённый список рецептов проффессии и кэширует его.
+-- Расчёт цен происходит один раз на проффессию, далее фильтрация/сортировка
+-- работают по памяти без обращений к Auctionator.
+function Artisan.Pricing:BuildProfessionList(profID)
+    local rawRecipes = Artisan.RecipeDB and Artisan.RecipeDB[profID]
+    if not rawRecipes then return nil end
+
+    local list = {}
+    for spellID, data in pairs(rawRecipes) do
+        local totalCost = 0
+        if data.reagents then
+            for reagentID, count in pairs(data.reagents) do
+                local price = Artisan.Auctionator:GetItemPrice(reagentID) or 0
+                totalCost = totalCost + (price * count)
+            end
+        end
+
+        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
+        local profit = (sellPrice * 0.95) - totalCost -- 0.95 % аукциона
+
+        local itemName, itemTexture = GetItemInfoCached(data.itemID)
+
+        tinsert(list, {
+            spellID = spellID,
+            itemID = data.itemID,
+            itemName = itemName,
+            itemTexture = itemTexture,
+            cost = totalCost,
+            sell = sellPrice,
+            profit = profit,
+        })
+    end
+
+    lists[profID] = list
+    return list
+end
+
+function Artisan.Pricing:GetProfessionList(profID)
+    if not lists[profID] then
+        return self:BuildProfessionList(profID)
+    end
+    return lists[profID]
+end
+
+-- Принудительный пересчёт (например, когда обновились цены на аукционе).
+function Artisan.Pricing:RefreshProfession(profID)
+    lists[profID] = nil
+    return self:BuildProfessionList(profID)
+end
+
+function Artisan.Pricing:ClearAll()
+    wipe(lists)
+end

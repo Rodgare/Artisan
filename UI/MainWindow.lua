@@ -2,12 +2,23 @@ local addonName, Artisan = ...
 
 Artisan.UI = Artisan.UI or {}
 
+local ROW_HEIGHT = 21
+local VISIBLE_ROWS = 20
+local WHEEL_STEP = 3
+
+local COLUMNS = {
+    { key = "name",   text = "Рецепт",   x = 120, width = 240, align = "LEFT",  sortKey = "itemName" },
+    { key = "cost",   text = "Затраты",  x = 300, width = 120, align = "RIGHT", sortKey = "cost" },
+    { key = "sell",   text = "Продажа",  x = 440, width = 120, align = "RIGHT", sortKey = "sell" },
+    { key = "profit", text = "Прибыль",  x = 580, width = 140, align = "RIGHT", sortKey = "profit" },
+}
+
 function Artisan.UI:CreateMainWindow()
     if ArtisanMainFrame then return end
 
     local frame = CreateFrame("Frame", "ArtisanMainFrame", UIParent)
     tinsert(UISpecialFrames, "ArtisanMainFrame")
-    frame:SetSize(800, 500)
+    frame:SetSize(800, 515)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("FULLSCREEN")
 
@@ -19,14 +30,14 @@ function Artisan.UI:CreateMainWindow()
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
 
-    frame:SetScript("OnMouseDown", function(self, LeftButton)
-        if LeftButton == "LeftButton" then
+    frame:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
             self:StartMoving()
         end
     end)
 
-    frame:SetScript("OnMouseUp", function(self, LeftButton)
-        if LeftButton == "LeftButton" then
+    frame:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" then
             self:StopMovingOrSizing()
         end
     end)
@@ -35,7 +46,7 @@ function Artisan.UI:CreateMainWindow()
         self:StopMovingOrSizing()
     end)
 
-    frame:Hide();
+    frame:Hide()
 
     Artisan.UI.MainFrame = frame
 
@@ -110,47 +121,62 @@ function Artisan.UI:CreateTopBar(parentFrame)
 end
 
 function Artisan.UI:CreateRecipeList(parentFrame)
+    local filterBox = CreateFrame("EditBox", nil, parentFrame, "InputBoxTemplate")
+    filterBox:SetSize(220, 20)
+    filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -38)
+    filterBox:SetAutoFocus(false)
+    filterBox:SetTextInsets(4, 4, 0, 0)
+
+    local filterLabel = filterBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    filterLabel:SetPoint("LEFT", filterBox, "RIGHT", 6, 0)
+    filterLabel:SetText("Поиск")
+    filterLabel:SetTextColor(0.6, 0.6, 0.6)
+
+    filterBox:SetScript("OnTextChanged", function(self)
+        Artisan.UI:SetFilter(self:GetText())
+    end)
+
     local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame", parentFrame)
-    scrollFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -60)
-    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", 0, 20)
+    scrollFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -88)
+    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 18)
 
     local header = CreateFrame("Frame", nil, parentFrame)
-    header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -38)
-    header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -32, -38)
+    header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -64)
+    header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, -64)
     header:SetHeight(20)
 
-    local columns = {
-        { key = "name", text = "Рецепт", x = 120, width = 240, align = "LEFT" },
-        { key = "cost", text = "Затраты", x = 300, width = 120, align = "RIGHT" },
-        { key = "sell", text = "Продажа", x = 440, width = 120, align = "RIGHT" },
-        { key = "profit", text = "Прибыль", x = 580, width = 140, align = "RIGHT" },
-    }
-    for _, col in ipairs(columns) do
+    self.ColumnHeaders = {}
+    for _, col in ipairs(COLUMNS) do
         local btn = CreateFrame("Button", nil, header)
         btn:SetSize(col.width, 18)
         btn:SetPoint("LEFT", header, "LEFT", col.x, 0)
+        btn.col = col
+
         local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         txt:SetAllPoints(btn)
         txt:SetText(col.text)
         txt:SetJustifyH(col.align)
         txt:SetTextColor(0.7, 0.7, 0.7)
-        btn:SetScript("OnEnter", function() txt:SetTextColor(1, 1, 1) end)
-        btn:SetScript("OnLeave", function() txt:SetTextColor(0.7, 0.7, 0.7) end)
+        btn.txt = txt
 
-        btn:SetScript("OnClick", function()
-            --TODO SORT
+        btn:SetScript("OnEnter", function(self)
+            self.txt:SetTextColor(1, 1, 1)
         end)
+        btn:SetScript("OnLeave", function()
+            Artisan.UI:RefreshColumnHeaders()
+        end)
+        btn:SetScript("OnClick", function(self)
+            Artisan.UI:ToggleSort(self.col.sortKey)
+        end)
+
+        self.ColumnHeaders[col.key] = btn
     end
 
     self.RowFrames = {}
-
-    local ROW_HEIGHT = 21
-
-    for i = 1, 20 do
+    for i = 1, VISIBLE_ROWS do
         local row = CreateFrame("Button", nil, parentFrame)
         row:SetSize(750, ROW_HEIGHT)
-        row:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0,
-            -(i - 1) * ROW_HEIGHT)
+        row:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, -(i - 1) * ROW_HEIGHT)
 
         local bg = row:CreateTexture(nil, "BACKGROUND")
         bg:SetAllPoints(row)
@@ -187,11 +213,8 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         row:SetScript("OnEnter", function(self)
             if not self.data then return end
-
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-
             GameTooltip:SetHyperlink("item:" .. self.data.itemID)
-            -- print(self.data.itemID)
             GameTooltip:Show()
         end)
         row:SetScript("OnLeave", function()
@@ -210,7 +233,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     self.ScrollBar = scrollBar
 
     local function ClampOffset(offset, totalItems)
-        local maxOffset = math.max(0, totalItems - 20)
+        local maxOffset = math.max(0, totalItems - VISIBLE_ROWS)
         if offset < 0 then offset = 0 end
         if offset > maxOffset then offset = maxOffset end
         return offset
@@ -218,7 +241,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
     local function OnWheel(delta)
         local totalItems = Artisan.UI.CurrentList and #Artisan.UI.CurrentList or 0
-        local newOffset = FauxScrollFrame_GetOffset(scrollFrame) - (delta * 1)
+        local newOffset = FauxScrollFrame_GetOffset(scrollFrame) - (delta * WHEEL_STEP)
         newOffset = ClampOffset(newOffset, totalItems)
         FauxScrollFrame_SetOffset(scrollFrame, newOffset)
         Artisan.UI:UpdateScroll()
@@ -229,7 +252,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         OnWheel(delta)
     end)
 
-    for i = 1, 20 do
+    for i = 1, VISIBLE_ROWS do
         local row = self.RowFrames[i]
         row:EnableMouseWheel(true)
         row:SetScript("OnMouseWheel", function(_, delta)
@@ -254,46 +277,93 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 end
 
 function Artisan.UI:SelectProfession(profID)
-    local rawRecipes = Artisan.RecipeDB and Artisan.RecipeDB[profID]
-    if not rawRecipes then return end
+    self.ProfessionID = profID
 
-    local list = {}
-
-    for spellID, data in pairs(rawRecipes) do
-        local totalCost = 0
-
-        if data.reagents then
-            for reagentID, count in pairs(data.reagents) do
-                local price = Artisan.Auctionator:GetItemPrice(reagentID) or 0
-                totalCost = totalCost + (price * count)
-            end
-        end
-
-        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
-        local profit = (sellPrice * 0.95) - totalCost --0.95 auc % TODO проверить
-
-        table.insert(list, {
-            spellID = spellID,
-            itemID = data.itemID,
-            cost = totalCost,
-            sell = sellPrice,
-            profit = profit,
-        })
+    if not Artisan.Pricing then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль Pricing не загружен. Полностью перезапусти клиент (не только /reload).")
+        return
     end
 
+    self.FullList = Artisan.Pricing:GetProfessionList(profID)
+    if not self.FullList then return end
+
+    if not self.SortKey then
+        self.SortKey = "profit"
+        self.SortDir = -1
+    end
+
+    self:RefreshList()
+    self:RefreshColumnHeaders()
+end
+
+function Artisan.UI:SetFilter(text)
+    self.FilterText = text or ""
+    self:RefreshList()
+end
+
+function Artisan.UI:ToggleSort(key)
+    if self.SortKey == key then
+        self.SortDir = self.SortDir == 1 and -1 or 1
+    else
+        self.SortKey = key
+        self.SortDir = -1
+    end
+    self:RefreshList()
+    self:RefreshColumnHeaders()
+end
+
+function Artisan.UI:RefreshList()
+    if not self.FullList then return end
+
+    local list = self.FullList
+    local filter = (self.FilterText or ""):lower()
+    if filter ~= "" then
+        list = {}
+        for _, row in ipairs(self.FullList) do
+            if row.itemName and row.itemName:lower():find(filter, 1, true) then
+                tinsert(list, row)
+            end
+        end
+    end
+
+    local key = self.SortKey or "profit"
+    local dir = self.SortDir or -1
     table.sort(list, function(a, b)
-        return a.profit > b.profit
+        if key == "itemName" then
+            local an, bn = a.itemName or "", b.itemName or ""
+            if an == bn then return false end
+            return dir == 1 and an < bn or an > bn
+        end
+        local av, bv = a[key] or 0, b[key] or 0
+        if av == bv then return false end
+        return dir == 1 and av < bv or av > bv
     end)
 
     self.CurrentList = list
+    FauxScrollFrame_SetOffset(self.ScrollFrame, 0)
     self:UpdateScroll()
+end
+
+function Artisan.UI:RefreshColumnHeaders()
+    if not self.ColumnHeaders then return end
+    for _, btn in pairs(self.ColumnHeaders) do
+        local col = btn.col
+        if self.SortKey == col.sortKey then
+            local arrow = self.SortDir == 1 and " ▲" or " ▼"
+            btn.txt:SetText(col.text .. arrow)
+            btn.txt:SetTextColor(1, 1, 1)
+        else
+            btn.txt:SetText(col.text)
+            btn.txt:SetTextColor(0.7, 0.7, 0.7)
+        end
+    end
 end
 
 function Artisan.UI:UpdateScroll()
     if not self.CurrentList or not self.ScrollFrame then return end
 
     local totalItems = #self.CurrentList
-    local maxOffset = math.max(0, totalItems - 20)
+    local maxOffset = math.max(0, totalItems - VISIBLE_ROWS)
     local offset = FauxScrollFrame_GetOffset(self.ScrollFrame)
     if offset < 0 then offset = 0 end
     if offset > maxOffset then offset = maxOffset end
@@ -301,7 +371,7 @@ function Artisan.UI:UpdateScroll()
 
     if self.ScrollBar then
         local scrollBar = self.ScrollBar
-        if totalItems > 20 then
+        if totalItems > VISIBLE_ROWS then
             scrollBar:Show()
             scrollBar:SetMinMaxValues(0, maxOffset)
             scrollBar:SetValueStep(1)
@@ -311,7 +381,7 @@ function Artisan.UI:UpdateScroll()
         end
     end
 
-    for i = 1, 20 do
+    for i = 1, VISIBLE_ROWS do
         local index = offset + i
         local data = self.CurrentList[index]
         local row = self.RowFrames[i]
@@ -319,10 +389,8 @@ function Artisan.UI:UpdateScroll()
         if data then
             row:Show()
 
-            local itemName, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(data.itemID)
-
-            row.icon:SetTexture(itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
-            row.name:SetText(itemName or ("ID: " .. data.itemID))
+            row.icon:SetTexture(data.itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
+            row.name:SetText(data.itemName or ("ID: " .. data.itemID))
             row.cost:SetText(Artisan.Utils:FormatMoney(data.cost))
             row.sell:SetText(Artisan.Utils:FormatMoney(data.sell))
             row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
