@@ -132,8 +132,8 @@ end
 
 function Artisan.UI:CreateRecipeList(parentFrame)
     local filterBox = CreateFrame("EditBox", nil, parentFrame, "InputBoxTemplate")
-    filterBox:SetSize(220, 20)
-    filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -118)
+    filterBox:SetSize(280, 20)
+    filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -40)
     filterBox:SetAutoFocus(false)
     filterBox:SetTextInsets(4, 4, 0, 0)
 
