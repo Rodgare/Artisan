@@ -363,7 +363,13 @@ function Artisan.UI:BuildCategoryBar()
         end
 
         btn:SetScript("OnClick", function(self)
-            Artisan.UI:SetGroup(self.label == ALL and nil or self.label)
+            local g
+            if self.label == ALL then
+                g = nil
+            else
+                g = self.label
+            end
+            Artisan.UI:SetGroup(g)
         end)
         btn.label = label
 
