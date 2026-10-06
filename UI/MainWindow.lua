@@ -17,7 +17,7 @@ local COLUMNS = {
 }
 
 local REAGENT_ICON_SIZE = 16
-local REAGENT_ICON_GAP = 2
+local REAGENT_ICON_GAP = 16
 local MAX_REAGENT_ICONS = 5
 local REAGENT_X = 240
 
@@ -245,6 +245,15 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         self.ColumnHeaders[col.key] = btn
     end
 
+    local reagentHeader = CreateFrame("Button", nil, header)
+    reagentHeader:SetSize(130, 18)
+    reagentHeader:SetPoint("LEFT", header, "LEFT", REAGENT_X, 0)
+    local reagentHeaderText = reagentHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    reagentHeaderText:SetAllPoints(reagentHeader)
+    reagentHeaderText:SetText("Реагенты")
+    reagentHeaderText:SetJustifyH("LEFT")
+    reagentHeaderText:SetTextColor(1, 1, 1)
+
     self.RowFrames = {}
     for i = 1, VISIBLE_ROWS do
         local row = CreateFrame("Button", nil, parentFrame)
@@ -277,8 +286,10 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
             slot.tex = tex
             local count = slot:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            count:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", 0, 0)
+            count:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", 16, 0)
             count:SetTextColor(1, 1, 1)
+            count:SetShadowColor(0, 0, 0, 2)
+            count:SetShadowOffset(1, -1)
             slot.count = count
             slot:Hide()
             slot:SetScript("OnEnter", function(self)
@@ -669,7 +680,7 @@ function Artisan.UI:UpdateScroll()
                 if rg then
                     slot.data = rg
                     slot.tex:SetTexture(rg.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                    slot.count:SetText("x" .. rg.count)
+                    slot.count:SetText(rg.count)
                     slot:Show()
                 else
                     slot.data = nil
