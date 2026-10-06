@@ -240,6 +240,11 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row:SetScript("OnLeave", function()
             GameTooltip:Hide()
         end)
+        row:SetScript("OnClick", function(self, button)
+            if button == "LeftButton" and IsShiftKeyDown() and self.data then
+                Artisan.UI:SearchOnAuctionHouse(self.data.itemName)
+            end
+        end)
     end
 
     local scrollBar = CreateFrame("Slider", "ArtisanRecipeScrollFrameScrollBar",
@@ -574,5 +579,38 @@ function Artisan.UI:UpdateScroll()
         else
             row:Hide()
         end
+    end
+end
+
+function Artisan.UI:SearchOnAuctionHouse(itemName)
+    if not itemName or itemName == "" then return end
+
+    local ahOpen = (AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown())
+    if not ahOpen then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff888888[Artisan]|r Открой аукцион, чтобы искать предмет.")
+        return
+    end
+
+    local box = _G["AuctionHouseFrameSearchBarSearchBox"]
+        or _G["AuctionHouseFrameSearchBox"]
+        or _G["AuctionFrameBrowseSearchBox"]
+    if not box then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]|r Не найден поиск аукциона.")
+        return
+    end
+
+    box:SetText(itemName)
+
+    local ok, err = pcall(function()
+        if AuctionHouseFrame and AuctionHouseFrame.SearchBar and AuctionHouseFrame.SearchBar.SearchButton then
+            AuctionHouseFrame.SearchBar.SearchButton:Click()
+        elseif _G["AuctionHouseFrameSearchButton"] then
+            _G["AuctionHouseFrameSearchButton"]:Click()
+        elseif AuctionFrameBrowse_Search then
+            AuctionFrameBrowse_Search()
+        end
+    end)
+    if not ok then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]|r Ошибка запуска поиска: " .. tostring(err))
     end
 end

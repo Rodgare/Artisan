@@ -11,6 +11,12 @@ local useClass = {
     ["Еда и напитки"] = true,
     ["Эликсиры"] = true,
     ["Настойки"] = true,
+    ["Доспехи"] = true,
+    ["Оружие"] = true,
+    ["Рецепты"] = true,
+    ["Символы"] = true,
+    ["Хозяйственные товары"] = true,
+    ["Разное"] = true,
 }
 
 function Artisan.Categories:GetGroup(profID, itemName, itemType, itemSubType)
