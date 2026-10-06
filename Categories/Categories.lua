@@ -2,8 +2,6 @@ local addonName, Artisan = ...
 
 Artisan.Categories = Artisan.Categories or {}
 
--- Подкатегория определяется подтипом крафтового предмета (itemSubType из GetItemInfo).
--- Пока клиент не подгрузил данные предмета, используется классификатор по имени рецепта.
 local fallbackRules = {
     Alchemy = {
         { "Эликсир", "Эликсиры" },
@@ -20,7 +18,7 @@ local fallbackRules = {
     },
 }
 
--- @return string ключ группы (подтип или имя категории)
+-- @return string
 function Artisan.Categories:GetGroup(profID, itemName, itemSubType)
     if itemSubType and itemSubType ~= "" then
         return itemSubType

@@ -4,12 +4,10 @@ Artisan.UI = Artisan.UI or {}
 
 local ROW_HEIGHT = 21
 local VISIBLE_ROWS = 20
-local WHEEL_STEP = 3
+local WHEEL_STEP = 5
 
--- Фиксированная высота области категорий (рядов), чтобы раскладка не прыгала
--- при переключении проффессий. Категории переносятся в пределах этих рядов.
-local CATEGORY_ROWS_MAX = 4
-local CATEGORY_ROW_HEIGHT = 24
+local CATEGORY_ROWS_MAX = 3
+local CATEGORY_ROW_HEIGHT = 30
 
 local COLUMNS = {
     { key = "name",   text = "Рецепт",   x = 120, width = 240, align = "LEFT",  sortKey = "itemName" },
