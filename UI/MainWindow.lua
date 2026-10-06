@@ -142,18 +142,66 @@ end
 
 function Artisan.UI:CreateRecipeList(parentFrame)
     local filterBox = CreateFrame("EditBox", nil, parentFrame, "InputBoxTemplate")
-    filterBox:SetSize(280, 20)
+    filterBox:SetSize(180, 20)
     filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -40)
     filterBox:SetAutoFocus(false)
-    filterBox:SetTextInsets(4, 4, 0, 0)
+    filterBox:SetTextInsets(10, 18, 0, 0)
 
-    local filterLabel = filterBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    filterLabel:SetPoint("LEFT", filterBox, "RIGHT", 6, 0)
-    filterLabel:SetText("Поиск")
-    filterLabel:SetTextColor(0.6, 0.6, 0.6)
+    local placeholder = filterBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    placeholder:SetPoint("LEFT", filterBox, "LEFT", 7, 0)
+    placeholder:SetText("Поиск")
+    placeholder:SetTextColor(0.4, 0.4, 0.4)
+    placeholder:SetJustifyH("LEFT")
+
+    local clearBtn = CreateFrame("Button", nil, filterBox)
+    clearBtn:SetSize(16, 16)
+    clearBtn:SetPoint("RIGHT", filterBox, "RIGHT", -4, 0)
+    clearBtn:Hide()
+    local clearText = clearBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    clearText:SetAllPoints(clearBtn)
+    clearText:SetText("x")
+    clearText:SetTextColor(0.6, 0.6, 0.6)
+    clearBtn:SetScript("OnEnter", function() clearText:SetTextColor(1, 0.3, 0.3) end)
+    clearBtn:SetScript("OnLeave", function() clearText:SetTextColor(0.6, 0.6, 0.6) end)
+    clearBtn:SetScript("OnClick", function()
+        filterBox:SetText("")
+        filterBox:SetFocus()
+    end)
+
+    local function UpdateFilterBox()
+        local text = filterBox:GetText()
+        if text and text ~= "" then
+            placeholder:Hide()
+            clearBtn:Show()
+        else
+            if filterBox:HasFocus() then
+                placeholder:Hide()
+            else
+                placeholder:Show()
+            end
+            clearBtn:Hide()
+        end
+    end
 
     filterBox:SetScript("OnTextChanged", function(self)
         Artisan.UI:SetFilter(self:GetText())
+        UpdateFilterBox()
+    end)
+    filterBox:SetScript("OnEditFocusGained", UpdateFilterBox)
+    filterBox:SetScript("OnEditFocusLost", UpdateFilterBox)
+    UpdateFilterBox()
+
+    local showBop = CreateFrame("CheckButton", "ArtisanShowBopCheck", parentFrame, "UICheckButtonTemplate")
+    showBop:SetSize(20, 20)
+    showBop:SetPoint("LEFT", filterBox, "RIGHT", 8, 0)
+    showBop:SetChecked(false)
+    local showBopLabel = _G["ArtisanShowBopCheckText"]
+    if showBopLabel then
+        showBopLabel:SetText("Личные (BoP)")
+        showBopLabel:SetTextColor(0.7, 0.7, 0.7)
+    end
+    showBop:SetScript("OnClick", function(self)
+        Artisan.UI:SetShowBOP(self:GetChecked())
     end)
 
     local header = CreateFrame("Frame", nil, parentFrame)
@@ -476,6 +524,11 @@ function Artisan.UI:SetFilter(text)
     self:RefreshList()
 end
 
+function Artisan.UI:SetShowBOP(show)
+    self.ShowBOP = show and true or false
+    self:RefreshList()
+end
+
 function Artisan.UI:ToggleSort(key)
     if self.SortKey == key then
         self.SortDir = self.SortDir == 1 and -1 or 1
@@ -493,10 +546,12 @@ function Artisan.UI:RefreshList()
     local list = {}
     local filter = (self.FilterText or ""):lower()
     local group = self.GroupFilter
+    local showBop = self.ShowBOP
     for i = 1, #self.FullList do
         local row = self.FullList[i]
         if row then
-            if group and (row.group or "Прочее") ~= group then
+            if row.bop and not showBop then
+            elseif group and (row.group or "Прочее") ~= group then
                 -- skip: не из выбранной категории
             elseif filter ~= "" and not (row.itemName and row.itemName:lower():find(filter, 1, true)) then
                 -- skip: не совпало с поиском

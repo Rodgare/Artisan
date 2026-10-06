@@ -25,32 +25,31 @@ function Artisan.Pricing:BuildProfessionList(profID)
 
     local list = {}
     for spellID, data in pairs(rawRecipes) do
-        if data.bonding ~= 1 then
-            local totalCost = 0
-            if data.reagents then
-                for reagentID, count in pairs(data.reagents) do
-                    local price = Artisan.Auctionator:GetItemPrice(reagentID) or 0
-                    totalCost = totalCost + (price * count)
-                end
+        local totalCost = 0
+        if data.reagents then
+            for reagentID, count in pairs(data.reagents) do
+                local price = Artisan.Auctionator:GetItemPrice(reagentID) or 0
+                totalCost = totalCost + (price * count)
             end
-
-            local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
-            local profit = (sellPrice * 0.95) - totalCost -- 0.95 % аукциона
-
-            local itemName, itemTexture, itemType, itemSubType = GetItemInfoCached(data.itemID)
-
-            tinsert(list, {
-                spellID = spellID,
-                itemID = data.itemID,
-                profID = profID,
-                itemName = itemName,
-                itemTexture = itemTexture,
-                group = Artisan.Categories:GetGroup(profID, itemName, itemType, itemSubType),
-                cost = totalCost,
-                sell = sellPrice,
-                profit = profit,
-            })
         end
+
+        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
+        local profit = (sellPrice * 0.95) - totalCost -- 0.95 % аукциона
+
+        local itemName, itemTexture, itemType, itemSubType = GetItemInfoCached(data.itemID)
+
+        tinsert(list, {
+            spellID = spellID,
+            itemID = data.itemID,
+            profID = profID,
+            itemName = itemName,
+            itemTexture = itemTexture,
+            group = Artisan.Categories:GetGroup(profID, itemName, itemType, itemSubType),
+            bop = data.bonding == 1,
+            cost = totalCost,
+            sell = sellPrice,
+            profit = profit,
+        })
     end
 
     lists[profID] = list
