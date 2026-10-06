@@ -322,15 +322,45 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         self.RowFrames[i] = row
 
-        row:SetScript("OnEnter", function(self)
-            if not self.data then return end
+        local nameButton = CreateFrame("Button", nil, row)
+        nameButton:SetSize(200, ROW_HEIGHT)
+        nameButton:SetPoint("LEFT", row, "LEFT", 28, 0)
+        nameButton:SetScript("OnEnter", function(self)
+            if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
-            GameTooltip:SetHyperlink("item:" .. self.data.itemID)
+            GameTooltip:SetHyperlink("item:" .. row.data.itemID)
             GameTooltip:Show()
         end)
-        row:SetScript("OnLeave", function()
+        nameButton:SetScript("OnLeave", function()
             GameTooltip:Hide()
         end)
+        nameButton:SetScript("OnClick", function(self, button)
+            if button == "LeftButton" and IsShiftKeyDown() and row.data then
+                Artisan.UI:SearchOnAuctionHouse(row.data.itemName)
+            end
+        end)
+
+        local costButton = CreateFrame("Button", nil, row)
+        costButton:SetSize(120, ROW_HEIGHT)
+        costButton:SetPoint("LEFT", row, "LEFT", 370, 0)
+        costButton:SetScript("OnEnter", function(self)
+            if not row.data then return end
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine("Затраты на крафт", 1, 0.82, 0)
+            local reagents = row.data.reagents
+            if reagents then
+                for _, rg in ipairs(reagents) do
+                    GameTooltip:AddLine((rg.name or ("ID: " .. rg.itemID)) .. " x" .. rg.count, 1, 1, 1)
+                end
+            end
+            GameTooltip:AddLine("Итого: " .. Artisan.Utils:FormatMoney(row.data.cost), 1, 1, 1)
+            GameTooltip:Show()
+        end)
+        costButton:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
         row:SetScript("OnClick", function(self, button)
             if button == "LeftButton" and IsShiftKeyDown() and self.data then
                 Artisan.UI:SearchOnAuctionHouse(self.data.itemName)
