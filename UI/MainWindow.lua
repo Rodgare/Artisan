@@ -110,10 +110,9 @@ function Artisan.UI:CreateTopBar(parentFrame)
 end
 
 function Artisan.UI:CreateRecipeList(parentFrame)
-    local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame",
-        parentFrame, "FauxScrollFrameTemplate")
+    local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame", parentFrame)
     scrollFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -60)
-    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -32, 10)
+    scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", 0, 20)
 
     local header = CreateFrame("Frame", nil, parentFrame)
     header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -38)
@@ -189,7 +188,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row:SetScript("OnEnter", function(self)
             if not self.data then return end
 
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
 
             GameTooltip:SetHyperlink("item:" .. self.data.itemID)
             -- print(self.data.itemID)
@@ -200,26 +199,56 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end)
     end
 
-    scrollFrame:SetScript("OnVerticalScroll", function(self, offset)
-        FauxScrollFrame_OnVerticalScroll(self, offset, 21, function()
-            Artisan.UI:UpdateScroll()
-        end)
-    end)
+    local scrollBar = CreateFrame("Slider", "ArtisanRecipeScrollFrameScrollBar",
+        scrollFrame, "UIPanelScrollBarTemplate")
+    scrollBar:SetPoint("TOPLEFT", scrollFrame, "TOPRIGHT", -20, 0)
+    scrollBar:SetPoint("BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", -20, 0)
+    scrollBar:SetWidth(16)
+    scrollBar:SetMinMaxValues(0, 1)
+    scrollBar:SetValueStep(1)
+    scrollBar:SetValue(0)
+    self.ScrollBar = scrollBar
+
+    local function ClampOffset(offset, totalItems)
+        local maxOffset = math.max(0, totalItems - 20)
+        if offset < 0 then offset = 0 end
+        if offset > maxOffset then offset = maxOffset end
+        return offset
+    end
+
+    local function OnWheel(delta)
+        local totalItems = Artisan.UI.CurrentList and #Artisan.UI.CurrentList or 0
+        local newOffset = FauxScrollFrame_GetOffset(scrollFrame) - (delta * 1)
+        newOffset = ClampOffset(newOffset, totalItems)
+        FauxScrollFrame_SetOffset(scrollFrame, newOffset)
+        Artisan.UI:UpdateScroll()
+    end
 
     scrollFrame:EnableMouseWheel(true)
-    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-        local currentOffset = FauxScrollFrame_GetOffset(self)
-
-        local step = 1
-        local newOffset = currentOffset - (delta * step)
-        local totalItems = Artisan.UI.CurrentList and #Artisan.UI.CurrentList or 0
-        local maxOffset = math.max(0, totalItems - 20)
-        if newOffset < 0 then newOffset = 0 end
-        if newOffset > maxOffset then newOffset = maxOffset end
-        FauxScrollFrame_SetOffset(self, newOffset)
-        Artisan.UI:UpdateScroll()
+    scrollFrame:SetScript("OnMouseWheel", function(_, delta)
+        OnWheel(delta)
     end)
 
+    for i = 1, 20 do
+        local row = self.RowFrames[i]
+        row:EnableMouseWheel(true)
+        row:SetScript("OnMouseWheel", function(_, delta)
+            OnWheel(delta)
+        end)
+    end
+
+    scrollBar:EnableMouseWheel(true)
+    scrollBar:SetScript("OnMouseWheel", function(_, delta)
+        OnWheel(delta)
+    end)
+
+    scrollBar:SetScript("OnValueChanged", function(_, value)
+        if FauxScrollFrame_GetOffset(scrollFrame) ~= value then
+            local totalItems = Artisan.UI.CurrentList and #Artisan.UI.CurrentList or 0
+            FauxScrollFrame_SetOffset(scrollFrame, ClampOffset(value, totalItems))
+            Artisan.UI:UpdateScroll()
+        end
+    end)
 
     self.ScrollFrame = scrollFrame
 end
@@ -264,9 +293,23 @@ function Artisan.UI:UpdateScroll()
     if not self.CurrentList or not self.ScrollFrame then return end
 
     local totalItems = #self.CurrentList
+    local maxOffset = math.max(0, totalItems - 20)
     local offset = FauxScrollFrame_GetOffset(self.ScrollFrame)
+    if offset < 0 then offset = 0 end
+    if offset > maxOffset then offset = maxOffset end
+    FauxScrollFrame_SetOffset(self.ScrollFrame, offset)
 
-    FauxScrollFrame_Update(self.ScrollFrame, totalItems, 20, 21)
+    if self.ScrollBar then
+        local scrollBar = self.ScrollBar
+        if totalItems > 20 then
+            scrollBar:Show()
+            scrollBar:SetMinMaxValues(0, maxOffset)
+            scrollBar:SetValueStep(1)
+            scrollBar:SetValue(offset)
+        else
+            scrollBar:Hide()
+        end
+    end
 
     for i = 1, 20 do
         local index = offset + i

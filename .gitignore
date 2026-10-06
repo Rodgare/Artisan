@@ -6,3 +6,6 @@ Temp/SkillLine.json
 Temp/SkillLineAbility.json
 Temp/Spell.json
 Scripts/*
+.clinerules
+.roocode
+Modelfile
