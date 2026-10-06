@@ -38,6 +38,19 @@ function Artisan.Pricing:BuildProfessionList(profID)
 
         local itemName, itemTexture, itemType, itemSubType = GetItemInfoCached(data.itemID)
 
+        local reagents = {}
+        if data.reagents then
+            for reagentID, count in pairs(data.reagents) do
+                local rName, rTexture = GetItemInfoCached(reagentID)
+                tinsert(reagents, {
+                    itemID = reagentID,
+                    count = count,
+                    icon = rTexture,
+                    name = rName,
+                })
+            end
+        end
+
         tinsert(list, {
             spellID = spellID,
             itemID = data.itemID,
@@ -49,6 +62,7 @@ function Artisan.Pricing:BuildProfessionList(profID)
             cost = totalCost,
             sell = sellPrice,
             profit = profit,
+            reagents = reagents,
         })
     end
 

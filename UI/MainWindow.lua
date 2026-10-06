@@ -11,10 +11,15 @@ local CATEGORY_ROW_HEIGHT = 15
 
 local COLUMNS = {
     { key = "name",   text = "Рецепт",   x = 120, width = 240, align = "LEFT",  sortKey = "itemName" },
-    { key = "cost",   text = "Затраты",  x = 300, width = 120, align = "RIGHT", sortKey = "cost" },
-    { key = "sell",   text = "Продажа",  x = 440, width = 120, align = "RIGHT", sortKey = "sell" },
-    { key = "profit", text = "Прибыль",  x = 580, width = 140, align = "RIGHT", sortKey = "profit" },
+    { key = "cost",   text = "Затраты",  x = 370, width = 120, align = "RIGHT", sortKey = "cost" },
+    { key = "sell",   text = "Продажа",  x = 500, width = 120, align = "RIGHT", sortKey = "sell" },
+    { key = "profit", text = "Прибыль",  x = 630, width = 130, align = "RIGHT", sortKey = "profit" },
 }
+
+local REAGENT_ICON_SIZE = 16
+local REAGENT_ICON_GAP = 2
+local MAX_REAGENT_ICONS = 5
+local REAGENT_X = 240
 
 function Artisan.UI:CreateMainWindow()
     if ArtisanMainFrame then return end
@@ -220,11 +225,11 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         btn:SetPoint("LEFT", header, "LEFT", col.x, 0)
         btn.col = col
 
-        local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         txt:SetAllPoints(btn)
         txt:SetText(col.text)
         txt:SetJustifyH(col.align)
-        txt:SetTextColor(0.7, 0.7, 0.7)
+        txt:SetTextColor(1, 1, 1)
         btn.txt = txt
 
         btn:SetScript("OnEnter", function(self)
@@ -259,22 +264,49 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-        row.name:SetWidth(240)
+        row.name:SetWidth(200)
         row.name:SetJustifyH("LEFT")
 
+        row.reagentSlots = {}
+        for r = 1, MAX_REAGENT_ICONS do
+            local slot = CreateFrame("Button", nil, row)
+            slot:SetSize(REAGENT_ICON_SIZE, REAGENT_ICON_SIZE)
+            slot:SetPoint("LEFT", row, "LEFT", REAGENT_X + (r - 1) * (REAGENT_ICON_SIZE + REAGENT_ICON_GAP), 0)
+            local tex = slot:CreateTexture(nil, "ARTWORK")
+            tex:SetAllPoints(slot)
+            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            slot.tex = tex
+            local count = slot:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            count:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", 0, 0)
+            count:SetTextColor(1, 1, 1)
+            slot.count = count
+            slot:Hide()
+            slot:SetScript("OnEnter", function(self)
+                if not self.data then return end
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetHyperlink("item:" .. self.data.itemID)
+                GameTooltip:AddLine("Кол-во: " .. self.data.count, 1, 1, 1)
+                GameTooltip:Show()
+            end)
+            slot:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+            row.reagentSlots[r] = slot
+        end
+
         row.cost = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.cost:SetPoint("LEFT", row, "LEFT", 300, 0)
+        row.cost:SetPoint("LEFT", row, "LEFT", 370, 0)
         row.cost:SetWidth(120)
         row.cost:SetJustifyH("RIGHT")
 
         row.sell = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.sell:SetPoint("LEFT", row, "LEFT", 440, 0)
+        row.sell:SetPoint("LEFT", row, "LEFT", 500, 0)
         row.sell:SetWidth(120)
         row.sell:SetJustifyH("RIGHT")
 
         row.profit = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.profit:SetPoint("LEFT", row, "LEFT", 580, 0)
-        row.profit:SetWidth(140)
+        row.profit:SetPoint("LEFT", row, "LEFT", 630, 0)
+        row.profit:SetWidth(130)
         row.profit:SetJustifyH("RIGHT")
 
         self.RowFrames[i] = row
@@ -629,6 +661,21 @@ function Artisan.UI:UpdateScroll()
             row.cost:SetText(Artisan.Utils:FormatMoney(data.cost))
             row.sell:SetText(Artisan.Utils:FormatMoney(data.sell))
             row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
+
+            local reagents = data.reagents
+            for r = 1, MAX_REAGENT_ICONS do
+                local slot = row.reagentSlots[r]
+                local rg = reagents and reagents[r]
+                if rg then
+                    slot.data = rg
+                    slot.tex:SetTexture(rg.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                    slot.count:SetText("x" .. rg.count)
+                    slot:Show()
+                else
+                    slot.data = nil
+                    slot:Hide()
+                end
+            end
 
             row.data = data
         else
