@@ -461,6 +461,15 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end
     end
 
+    -- Force save on logout
+    local logoutFrame = CreateFrame("Frame")
+    logoutFrame:RegisterEvent("PLAYER_LOGOUT")
+    logoutFrame:SetScript("OnEvent", function()
+        -- SavedVariables are auto-saved, but ensure table exists
+        ArtisanDB = ArtisanDB or {}
+        ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
+    end)
+
     local scanFrame = CreateFrame("Frame")
     scanFrame:RegisterEvent("TRADE_SKILL_SHOW")
     scanFrame:RegisterEvent("TRADE_SKILL_UPDATE")
