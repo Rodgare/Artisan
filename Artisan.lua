@@ -32,7 +32,7 @@ SLASH_ARTISANDB1 = "/artisandb"
 SlashCmdList["ARTISANDB"] = function()
     ArtisanDB = ArtisanDB or {}
     ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
-    local charKey = UnitName("player") .. "-" .. GetRealmName()
+    local charKey = UnitName("player") or "?"
     local count = 0
     if ArtisanDB.knownRecipes[charKey] then
         for _ in pairs(ArtisanDB.knownRecipes[charKey]) do count = count + 1 end

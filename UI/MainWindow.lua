@@ -2,6 +2,10 @@ local addonName, Artisan = ...
 
 Artisan.UI = Artisan.UI or {}
 
+Artisan.UI.KnownRecipes = Artisan.UI.KnownRecipes or {}
+Artisan.UI.KnownRecipesByProf = Artisan.UI.KnownRecipesByProf or {}
+Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
+
 local LAYOUT = {
     frameWidth = 800, frameHeight = 600,
     iconX = 4, iconSize = 18, nameX = 120, nameWidth = 100,
@@ -30,6 +34,51 @@ local REAGENT_ICON_SIZE = 16
 local REAGENT_ICON_GAP = 2
 local MAX_REAGENT_ICONS = 5
 local REAGENT_X = LAYOUT.reagentX
+
+function Artisan.UI:GetCurrentCharKey()
+    return UnitName("player") or ""
+end
+
+function Artisan.UI:InitKnownRecipesDB()
+    ArtisanDB = ArtisanDB or {}
+    ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
+
+    local normalized = {}
+    local needRewrite = false
+    for key, recipes in pairs(ArtisanDB.knownRecipes) do
+        local charName = key:match("^([^%-]+)") or key
+        if charName ~= key then needRewrite = true end
+        normalized[charName] = normalized[charName] or {}
+        for spellID in pairs(recipes) do
+            normalized[charName][spellID] = true
+        end
+    end
+    if needRewrite then
+        ArtisanDB.knownRecipes = normalized
+    end
+
+    local name = UnitName("player")
+    if not name or name == "" then
+        Artisan.UI.CurrentCharKey = nil
+        return
+    end
+    Artisan.UI.CurrentCharKey = name
+    ArtisanDB.knownRecipes[name] = ArtisanDB.knownRecipes[name] or {}
+
+    for spellID in pairs(ArtisanDB.knownRecipes[name]) do
+        Artisan.UI.KnownRecipes[spellID] = true
+    end
+end
+
+local initFrame = CreateFrame("Frame")
+initFrame:RegisterEvent("ADDON_LOADED")
+initFrame:RegisterEvent("PLAYER_LOGIN")
+initFrame:SetScript("OnEvent", function(self, event, loadedAddon)
+    if event == "ADDON_LOADED" and loadedAddon ~= "Artisan" then
+        return
+    end
+    Artisan.UI:InitKnownRecipesDB()
+end)
 
 function Artisan.UI:CreateMainWindow()
     if ArtisanMainFrame then return end
@@ -310,19 +359,16 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.profit:SetWidth(LAYOUT.colProfitWidth)
         row.profit:SetJustifyH("RIGHT")
 
-        -- Helper to create styled button
         local function CreateStyledButton(parent, text, width, onClick)
             local btn = CreateFrame("Button", nil, parent)
             btn:SetSize(width, 20)
 
-            -- Gray background
             local bg = btn:CreateTexture(nil, "BACKGROUND")
             bg:SetAllPoints()
             bg:SetTexture("Interface/Buttons/WHITE8X8")
             bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
             btn.bg = bg
 
-            -- Subtle border
             local border = btn:CreateTexture(nil, "BORDER")
             border:SetAllPoints()
             border:SetTexture("Interface/Buttons/WHITE8X8")
@@ -344,7 +390,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                 self.txt:SetTextColor(1, 1, 1)
             end)
             btn:SetScript("OnLeave", function(self)
-                -- Restore visual
                 if self:IsEnabled() then
                     self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
                     self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
@@ -488,23 +533,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         self.RowFrames[i] = row
     end
 
-    -- Known recipes cache (scanned from TradeSkill window + persisted)
-    Artisan.UI.KnownRecipes = Artisan.UI.KnownRecipes or {}
-    Artisan.UI.KnownRecipesByProf = Artisan.UI.KnownRecipesByProf or {}
-    Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
-
-    Artisan.UI.CurrentCharKey = UnitName("player") .. "-" .. GetRealmName()
-
-    function Artisan.UI:InitKnownRecipesDB()
-        ArtisanDB = ArtisanDB or {}
-        ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
-        ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] = ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] or {}
-
-        -- Load saved recipes into memory
-        for spellID in pairs(ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey]) do
-            Artisan.UI.KnownRecipes[spellID] = true
-        end
-    end
+    Artisan.UI.CurrentCharKey = Artisan.UI:GetCurrentCharKey()
 
     function Artisan.UI:ScanKnownRecipes()
         if not TradeSkillFrame or not TradeSkillFrame:IsShown() then return end
@@ -532,7 +561,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             end
         end
 
-        -- Persist new recipes
         if next(newRecipes) then
             ArtisanDB = ArtisanDB or {}
             ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
@@ -543,7 +571,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end
     end
 
-    -- Force save on logout
     local logoutFrame = CreateFrame("Frame")
     logoutFrame:RegisterEvent("PLAYER_LOGOUT")
     logoutFrame:SetScript("OnEvent", function()
@@ -1030,10 +1057,8 @@ function Artisan.UI:OpenCraftWindow(spellID, profID)
         return
     end
 
-    -- Open the profession window
     CastSpellByName(profSpell)
 
-    -- Wait for trade skill window to open, then select the recipe
     local waitFrame = CreateFrame("Frame")
     local elapsed = 0
     waitFrame:SetScript("OnUpdate", function(self, e)
@@ -1085,7 +1110,6 @@ function Artisan.UI:SearchReagentsOnAH(reagents)
         return
     end
 
-    -- Use Auctionator's MultiSearch API - searches multiple items at once
     if Auctionator and Auctionator.API and Auctionator.API.v1 and Auctionator.API.v1.MultiSearch then
         local searchTerms = {}
         for _, reagent in ipairs(reagents) do
@@ -1104,7 +1128,6 @@ function Artisan.UI:SearchReagentsOnAH(reagents)
         end
     end
 
-    -- Fallback: search first reagent manually
     local firstReagent = reagents[1]
     if firstReagent and firstReagent.itemID then
         local _, itemLink = GetItemInfo(firstReagent.itemID)
