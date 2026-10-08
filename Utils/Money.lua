@@ -17,6 +17,21 @@ local function GroupGold(gold)
 end
 
 function Artisan.Utils:FormatMoney(copper)
+    if not copper or copper == 0 then return "0|cffffd700г|r" end
+
+    local sign = ""
+    if copper < 0 then
+        sign = "-"
+        copper = -copper
+    end
+
+    local gold = math.floor(copper / 10000)
+    if gold < 1 then return sign .. "0|cffffd700г|r" end
+
+    return sign .. GroupGold(gold) .. "|cffffd700г|r"
+end
+
+function Artisan.Utils:FormatMoneyRaw(copper)
     if not copper or copper == 0 then return "0г" end
 
     local sign = ""

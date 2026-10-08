@@ -1,5 +1,13 @@
 local addonName, Artisan = ...
 
+local initFrame = CreateFrame("Frame")
+initFrame:RegisterEvent("PLAYER_LOGIN")
+initFrame:SetScript("OnEvent", function()
+    if Artisan.UI and Artisan.UI.InitKnownRecipesDB then
+        Artisan.UI:InitKnownRecipesDB()
+    end
+end)
+
 SLASH_ARTISAN1 = "/artisan"
 SLASH_ARTISAN2 = "/art"
 

@@ -10,10 +10,11 @@ local CATEGORY_ROWS_MAX = 6
 local CATEGORY_ROW_HEIGHT = 15
 
 local COLUMNS = {
-    { key = "name",   text = "Рецепт",   x = 120, width = 240, align = "LEFT",  sortKey = "itemName" },
-    { key = "cost",   text = "Затраты",  x = 370, width = 120, align = "RIGHT", sortKey = "cost" },
-    { key = "sell",   text = "Продажа",  x = 500, width = 120, align = "RIGHT", sortKey = "sell" },
-    { key = "profit", text = "Прибыль",  x = 630, width = 130, align = "RIGHT", sortKey = "profit" },
+    { key = "name",   text = "Рецепт",   x = 120, width = 220, align = "LEFT",  sortKey = "itemName" },
+    { key = "cost",   text = "Затраты",  x = 350, width = 100, align = "RIGHT", sortKey = "cost" },
+    { key = "sell",   text = "Продажа",  x = 460, width = 100, align = "RIGHT", sortKey = "sell" },
+    { key = "profit", text = "Прибыль",  x = 570, width = 110, align = "RIGHT", sortKey = "profit" },
+    { key = "craft",  text = "Крафт",    x = 690, width = 70,  align = "CENTER", sortKey = nil },
 }
 
 local REAGENT_ICON_SIZE = 16
@@ -56,6 +57,7 @@ function Artisan.UI:CreateMainWindow()
 
     frame:SetScript("OnShow", function()
         Artisan.UI:InitList()
+        Artisan.UI:ScanKnownRecipes()
     end)
 
     frame:Hide()
@@ -209,6 +211,19 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         Artisan.UI:SetShowBOP(self:GetChecked())
     end)
 
+    local showKnown = CreateFrame("CheckButton", "ArtisanShowKnownCheck", parentFrame, "UICheckButtonTemplate")
+    showKnown:SetSize(20, 20)
+    showKnown:SetPoint("LEFT", showBop, "RIGHT", 8, 0)
+    showKnown:SetChecked(false)
+    local showKnownLabel = _G["ArtisanShowKnownCheckText"]
+    if showKnownLabel then
+        showKnownLabel:SetText("Только изученные")
+        showKnownLabel:SetTextColor(0.7, 0.7, 0.7)
+    end
+    showKnown:SetScript("OnClick", function(self)
+        Artisan.UI:SetShowKnown(self:GetChecked())
+    end)
+
     local header = CreateFrame("Frame", nil, parentFrame)
     header:SetPoint("TOPLEFT", filterBox, "BOTTOMLEFT", 0, -10)
     header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, 0)
@@ -232,15 +247,19 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         txt:SetTextColor(1, 1, 1)
         btn.txt = txt
 
-        btn:SetScript("OnEnter", function(self)
-            self.txt:SetTextColor(1, 1, 1)
-        end)
-        btn:SetScript("OnLeave", function()
-            Artisan.UI:RefreshColumnHeaders()
-        end)
-        btn:SetScript("OnClick", function(self)
-            Artisan.UI:ToggleSort(self.col.sortKey)
-        end)
+        if col.sortKey then
+            btn:SetScript("OnEnter", function(self)
+                self.txt:SetTextColor(1, 1, 1)
+            end)
+            btn:SetScript("OnLeave", function()
+                Artisan.UI:RefreshColumnHeaders()
+            end)
+            btn:SetScript("OnClick", function(self)
+                Artisan.UI:ToggleSort(self.col.sortKey)
+            end)
+        else
+            txt:SetTextColor(0.7, 0.7, 0.7)
+        end
 
         self.ColumnHeaders[col.key] = btn
     end
@@ -316,11 +335,158 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.sell:SetJustifyH("RIGHT")
 
         row.profit = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.profit:SetPoint("LEFT", row, "LEFT", 630, 0)
-        row.profit:SetWidth(130)
+        row.profit:SetPoint("LEFT", row, "LEFT", 570, 0)
+        row.profit:SetWidth(110)
         row.profit:SetJustifyH("RIGHT")
 
+        row.craftBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+        row.craftBtn:SetSize(60, 20)
+        row.craftBtn:SetPoint("LEFT", row, "LEFT", 690, 0)
+        row.craftBtn:SetText("Крафт")
+        row.craftBtn:SetNormalFontObject("GameFontNormalSmall")
+        row.craftBtn:SetHighlightFontObject("GameFontHighlightSmall")
+        row.craftBtn:SetDisabledFontObject("GameFontDisableSmall")
+        row.craftBtn:Hide()
+        row.craftBtn:SetScript("OnClick", function(self)
+            if row.data and row.data.spellID then
+                Artisan.UI:OpenCraftWindow(row.data.spellID, row.data.profID)
+            end
+        end)
+
+        row.reagentsBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+        row.reagentsBtn:SetSize(65, 20)
+        row.reagentsBtn:SetPoint("RIGHT", row.craftBtn, "LEFT", -2, 0)
+        row.reagentsBtn:SetText("Реагенты")
+        row.reagentsBtn:SetNormalFontObject("GameFontNormalSmall")
+        row.reagentsBtn:SetHighlightFontObject("GameFontHighlightSmall")
+        row.reagentsBtn:Hide()
+        row.reagentsBtn:SetScript("OnClick", function(self)
+            if row.data and row.data.reagents then
+                Artisan.UI:SearchReagentsOnAH(row.data.reagents)
+            end
+        end)
+        row.reagentsBtn:SetScript("OnEnter", function(self)
+            if not row.data then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Поиск реагентов на АХ", 1, 1, 1)
+            GameTooltip:Show()
+        end)
+        row.reagentsBtn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        row.craftBtn:SetScript("OnEnter", function(self)
+            if not row.data then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if self:IsEnabled() then
+                GameTooltip:SetText("Открыть окно крафта", 1, 1, 1)
+            else
+                GameTooltip:SetText("Рецепт не изучен", 0.7, 0.7, 0.7)
+            end
+
+            local chars = Artisan.UI:GetKnownChars(row.data.spellID)
+            if #chars > 0 then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("Изучено на:", 1, 1, 0)
+                for _, char in ipairs(chars) do
+                    local isCurrent = (char == Artisan.UI.CurrentCharKey)
+                    if isCurrent then
+                        GameTooltip:AddLine("  |cff00ff00" .. char .. "|r", 1, 1, 1)
+                    else
+                        GameTooltip:AddLine("  " .. char, 0.7, 0.7, 0.7)
+                    end
+                end
+            end
+
+            GameTooltip:Show()
+        end)
+        row.craftBtn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
         self.RowFrames[i] = row
+
+    -- Known recipes cache (scanned from TradeSkill window + persisted)
+    Artisan.UI.KnownRecipes = Artisan.UI.KnownRecipes or {}
+    Artisan.UI.KnownRecipesByProf = Artisan.UI.KnownRecipesByProf or {}
+    Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
+
+    Artisan.UI.CurrentCharKey = UnitName("player") .. "-" .. GetRealmName()
+
+    function Artisan.UI:InitKnownRecipesDB()
+        ArtisanDB = ArtisanDB or {}
+        ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
+        ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] = ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] or {}
+
+        -- Load saved recipes into memory
+        for spellID in pairs(ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey]) do
+            Artisan.UI.KnownRecipes[spellID] = true
+        end
+    end
+
+    function Artisan.UI:ScanKnownRecipes()
+        if not TradeSkillFrame or not TradeSkillFrame:IsShown() then return end
+        local numSkills = GetNumTradeSkills()
+        if numSkills == 0 then return end
+
+        local profName = GetTradeSkillLine()
+        Artisan.UI.KnownRecipesByProf[profName] = Artisan.UI.KnownRecipesByProf[profName] or {}
+        Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey] = Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey] or {}
+
+        local newRecipes = {}
+        for i = 1, numSkills do
+            local skillName, skillType = GetTradeSkillInfo(i)
+            if skillType ~= "header" and skillName then
+                local link = GetTradeSkillRecipeLink(i)
+                if link then
+                    local spellID = tonumber(link:match("enchant:(%d+)"))
+                    if spellID then
+                        Artisan.UI.KnownRecipes[spellID] = true
+                        Artisan.UI.KnownRecipesByProf[profName][spellID] = true
+                        Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey][spellID] = true
+                        newRecipes[spellID] = true
+                    end
+                end
+            end
+        end
+
+        -- Persist new recipes
+        if next(newRecipes) then
+            ArtisanDB = ArtisanDB or {}
+            ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
+            ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] = ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] or {}
+            for spellID in pairs(newRecipes) do
+                ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey][spellID] = true
+            end
+        end
+    end
+
+    local scanFrame = CreateFrame("Frame")
+    scanFrame:RegisterEvent("TRADE_SKILL_SHOW")
+    scanFrame:RegisterEvent("TRADE_SKILL_UPDATE")
+    scanFrame:SetScript("OnEvent", function()
+        Artisan.UI:ScanKnownRecipes()
+        if Artisan.UI.MainFrame and Artisan.UI.MainFrame:IsShown() then
+            Artisan.UI:UpdateScroll()
+        end
+    end)
+
+    function Artisan.UI:IsRecipeKnown(spellID)
+        return Artisan.UI.KnownRecipes[spellID] == true
+    end
+
+    function Artisan.UI:GetKnownChars(spellID)
+        local chars = {}
+        ArtisanDB = ArtisanDB or {}
+        if ArtisanDB.knownRecipes then
+            for char, recipes in pairs(ArtisanDB.knownRecipes) do
+                if recipes[spellID] then
+                    tinsert(chars, char)
+                end
+            end
+        end
+        return chars
+    end
 
         local nameButton = CreateFrame("Button", nil, row)
         nameButton:SetSize(200, ROW_HEIGHT)
@@ -354,7 +520,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                     GameTooltip:AddLine((rg.name or ("ID: " .. rg.itemID)) .. " x" .. rg.count, 1, 1, 1)
                 end
             end
-            GameTooltip:AddLine("Итого: " .. Artisan.Utils:FormatMoney(row.data.cost), 1, 1, 1)
+            GameTooltip:AddLine("Итого: " .. Artisan.Utils:FormatMoneyRaw(row.data.cost), 1, 1, 1)
             GameTooltip:Show()
         end)
         costButton:SetScript("OnLeave", function()
@@ -602,6 +768,11 @@ function Artisan.UI:SetShowBOP(show)
     self:RefreshList()
 end
 
+function Artisan.UI:SetShowKnown(show)
+    self.ShowKnown = show and true or false
+    self:RefreshList()
+end
+
 function Artisan.UI:ToggleSort(key)
     if self.SortKey == key then
         self.SortDir = self.SortDir == 1 and -1 or 1
@@ -620,6 +791,7 @@ function Artisan.UI:RefreshList()
     local filter = (self.FilterText or ""):lower()
     local group = self.GroupFilter
     local showBop = self.ShowBOP
+    local showKnown = self.ShowKnown
     for i = 1, #self.FullList do
         local row = self.FullList[i]
         if row then
@@ -628,6 +800,8 @@ function Artisan.UI:RefreshList()
                 -- skip: не из выбранной категории
             elseif filter ~= "" and not (row.itemName and row.itemName:lower():find(filter, 1, true)) then
                 -- skip: не совпало с поиском
+            elseif showKnown and row.spellID and not Artisan.UI:IsRecipeKnown(row.spellID) then
+                -- skip: не изучен
             else
                 tinsert(list, row)
             end
@@ -637,6 +811,7 @@ function Artisan.UI:RefreshList()
     local key = self.SortKey or "profit"
     local dir = self.SortDir or -1
     table.sort(list, function(a, b)
+        if not a or not b then return false end
         if key == "itemName" then
             local an, bn = a.itemName or "", b.itemName or ""
             if an == bn then return false end
@@ -723,8 +898,149 @@ function Artisan.UI:UpdateScroll()
             end
 
             row.data = data
+
+            -- Craft button
+            local craftBtn = row.craftBtn
+            local reagentsBtn = row.reagentsBtn
+            if data.spellID then
+                local known = Artisan.UI:IsRecipeKnown(data.spellID)
+                craftBtn:Show()
+                if known then
+                    craftBtn:Enable()
+                    craftBtn.spellID = data.spellID
+                    craftBtn.profID = data.profID
+                else
+                    craftBtn:Disable()
+                    craftBtn.spellID = nil
+                    craftBtn.profID = nil
+                end
+            else
+                craftBtn:Hide()
+                craftBtn:Disable()
+                craftBtn.spellID = nil
+                craftBtn.profID = nil
+            end
+
+            -- Reagents button
+            if data.reagents and #data.reagents > 0 then
+                reagentsBtn:Show()
+            else
+                reagentsBtn:Hide()
+            end
         else
             row:Hide()
+            row.craftBtn:Hide()
+            row.reagentsBtn:Hide()
+        end
+    end
+end
+
+function Artisan.UI:OpenCraftWindow(spellID, profID)
+    if not spellID then return end
+
+    local profSpell = Artisan.UI:GetProfessionSpell(profID)
+    if not profSpell then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Неизвестная профессия: " .. tostring(profID))
+        return
+    end
+
+    -- Open the profession window
+    CastSpellByName(profSpell)
+
+    -- Wait for trade skill window to open, then select the recipe
+    local waitFrame = CreateFrame("Frame")
+    local elapsed = 0
+    waitFrame:SetScript("OnUpdate", function(self, e)
+        elapsed = elapsed + e
+        if elapsed > 2 then
+            self:SetScript("OnUpdate", nil)
+            return
+        end
+        if TradeSkillFrame and TradeSkillFrame:IsShown() then
+            self:SetScript("OnUpdate", nil)
+            -- Find the recipe index
+            for i = 1, GetNumTradeSkills() do
+                local link = GetTradeSkillRecipeLink(i)
+                if link then
+                    local sID = tonumber(link:match("enchant:(%d+)"))
+                    if sID == spellID then
+                        TradeSkillFrame_SetSelection(i)
+                        TradeSkillFrame_Update()
+                        break
+                    end
+                end
+            end
+        end
+    end)
+end
+
+function Artisan.UI:GetProfessionSpell(profID)
+    local spells = {
+        Alchemy = "Алхимия",
+        Blacksmithing = "Кузнечное дело",
+        Enchanting = "Наложение чар",
+        Engineering = "Инженерное дело",
+        Inscription = "Начертание",
+        Jewelcrafting = "Ювелирное дело",
+        Leatherworking = "Кожевничество",
+        Tailoring = "Портняжное дело",
+        Cooking = "Кулинария",
+        Smelting = "Горное дело",
+    }
+    return spells[profID]
+end
+
+function Artisan.UI:SearchReagentsOnAH(reagents)
+    if not reagents or #reagents == 0 then return end
+
+    local ahOpen = (AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown())
+    if not ahOpen then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff888888[Artisan]|r Открой аукцион, чтобы искать реагенты.")
+        return
+    end
+
+    -- Use Auctionator's MultiSearch API - searches multiple items at once
+    if Auctionator and Auctionator.API and Auctionator.API.v1 and Auctionator.API.v1.MultiSearch then
+        local searchTerms = {}
+        for _, reagent in ipairs(reagents) do
+            if reagent.itemID then
+                local name = GetItemInfo(reagent.itemID)
+                if name then
+                    tinsert(searchTerms, name)
+                end
+            end
+        end
+
+        if #searchTerms > 0 then
+            Auctionator.API.v1.MultiSearch("Artisan", searchTerms)
+            DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r Поиск " .. #searchTerms .. " реагентов через Auctionator")
+            return
+        end
+    end
+
+    -- Fallback: search first reagent manually
+    local firstReagent = reagents[1]
+    if firstReagent and firstReagent.itemID then
+        local _, itemLink = GetItemInfo(firstReagent.itemID)
+        if itemLink then
+            local box = _G["AuctionHouseFrameSearchBarSearchBox"]
+                or _G["AuctionHouseFrameSearchBox"]
+                or _G["AuctionFrameBrowseSearchBox"]
+            if box then
+                box:SetText(itemLink)
+                local ok, err = pcall(function()
+                    if AuctionHouseFrame and AuctionHouseFrame.SearchBar and AuctionHouseFrame.SearchBar.SearchButton then
+                        AuctionHouseFrame.SearchBar.SearchButton:Click()
+                    elseif _G["AuctionHouseFrameSearchButton"] then
+                        _G["AuctionHouseFrameSearchButton"]:Click()
+                    elseif AuctionFrameBrowse_Search then
+                        AuctionFrameBrowse_Search()
+                    end
+                end)
+                if not ok then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]|r Ошибка поиска: " .. tostring(err))
+                end
+            end
         end
     end
 end
