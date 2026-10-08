@@ -339,32 +339,76 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.profit:SetWidth(110)
         row.profit:SetJustifyH("RIGHT")
 
-        row.craftBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-        row.craftBtn:SetSize(60, 20)
-        row.craftBtn:SetPoint("LEFT", row, "LEFT", 690, 0)
-        row.craftBtn:SetText("Крафт")
-        row.craftBtn:SetNormalFontObject("GameFontNormalSmall")
-        row.craftBtn:SetHighlightFontObject("GameFontHighlightSmall")
-        row.craftBtn:SetDisabledFontObject("GameFontDisableSmall")
-        row.craftBtn:Hide()
-        row.craftBtn:SetScript("OnClick", function(self)
+        -- Helper to create styled button
+        local function CreateStyledButton(parent, text, width, onClick)
+            local btn = CreateFrame("Button", nil, parent)
+            btn:SetSize(width, 20)
+
+            local bg = btn:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0.15, 0.15, 0.15, 0.95)
+            btn.bg = bg
+
+            local border = btn:CreateTexture(nil, "BORDER")
+            border:SetAllPoints()
+            border:SetColorTexture(0.4, 0.3, 0.1, 1)
+            btn.border = border
+
+            local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+            highlight:SetAllPoints()
+            highlight:SetColorTexture(0.5, 0.4, 0.15, 0.5)
+            btn:SetHighlightTexture(highlight)
+
+            local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            txt:SetPoint("CENTER")
+            txt:SetText(text)
+            txt:SetTextColor(1, 0.82, 0)
+            btn.txt = txt
+
+            btn:SetScript("OnClick", onClick)
+            btn:SetScript("OnEnter", function(self)
+                self.bg:SetColorTexture(0.25, 0.2, 0.05, 1)
+                self.border:SetColorTexture(1, 0.82, 0, 1)
+                self.txt:SetTextColor(1, 1, 1)
+            end)
+            btn:SetScript("OnLeave", function(self)
+                self.bg:SetColorTexture(0.15, 0.15, 0.15, 0.95)
+                self.border:SetColorTexture(0.4, 0.3, 0.1, 1)
+                self.txt:SetTextColor(1, 0.82, 0)
+            end)
+
+            btn.SetEnabledCustom = function(self, enabled)
+                if enabled then
+                    self:Enable()
+                    self.bg:SetColorTexture(0.15, 0.15, 0.15, 0.95)
+                    self.border:SetColorTexture(0.4, 0.3, 0.1, 1)
+                    self.txt:SetTextColor(1, 0.82, 0)
+                else
+                    self:Disable()
+                    self.bg:SetColorTexture(0.1, 0.1, 0.1, 0.95)
+                    self.border:SetColorTexture(0.25, 0.2, 0.1, 1)
+                    self.txt:SetTextColor(0.4, 0.35, 0.15)
+                end
+            end
+
+            return btn
+        end
+
+        row.craftBtn = CreateStyledButton(row, "Крафт", 60, function(self)
             if row.data and row.data.spellID then
                 Artisan.UI:OpenCraftWindow(row.data.spellID, row.data.profID)
             end
         end)
+        row.craftBtn:SetPoint("LEFT", row, "LEFT", 690, 0)
+        row.craftBtn:Hide()
 
-        row.reagentsBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-        row.reagentsBtn:SetSize(65, 20)
-        row.reagentsBtn:SetPoint("RIGHT", row.craftBtn, "LEFT", -2, 0)
-        row.reagentsBtn:SetText("Реагенты")
-        row.reagentsBtn:SetNormalFontObject("GameFontNormalSmall")
-        row.reagentsBtn:SetHighlightFontObject("GameFontHighlightSmall")
-        row.reagentsBtn:Hide()
-        row.reagentsBtn:SetScript("OnClick", function(self)
+        row.reagentsBtn = CreateStyledButton(row, "Реагенты", 65, function(self)
             if row.data and row.data.reagents then
                 Artisan.UI:SearchReagentsOnAH(row.data.reagents)
             end
         end)
+        row.reagentsBtn:SetPoint("RIGHT", row.craftBtn, "LEFT", -2, 0)
+        row.reagentsBtn:Hide()
         row.reagentsBtn:SetScript("OnEnter", function(self)
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -915,17 +959,17 @@ function Artisan.UI:UpdateScroll()
                 local known = Artisan.UI:IsRecipeKnown(data.spellID)
                 craftBtn:Show()
                 if known then
-                    craftBtn:Enable()
+                    craftBtn:SetEnabledCustom(true)
                     craftBtn.spellID = data.spellID
                     craftBtn.profID = data.profID
                 else
-                    craftBtn:Disable()
+                    craftBtn:SetEnabledCustom(false)
                     craftBtn.spellID = nil
                     craftBtn.profID = nil
                 end
             else
                 craftBtn:Hide()
-                craftBtn:Disable()
+                craftBtn:SetEnabledCustom(false)
                 craftBtn.spellID = nil
                 craftBtn.profID = nil
             end
