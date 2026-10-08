@@ -429,12 +429,14 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             btn.SetEnabledCustom = function(self, enabled)
                 if enabled then
                     self:Enable()
+                    self:SetAlpha(1)
                     self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
                     self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
                     self.txt:SetTextColor(1, 0.82, 0)
                     self.txt:SetText("Крафт")
                 else
                     self:Disable()
+                    self:SetAlpha(0.35)
                     self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
                     self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
                     self.txt:SetTextColor(0.5, 0.45, 0.35)
@@ -444,21 +446,61 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             return btn
         end
 
-        row.craftBtn = CreateStyledButton(row, "Крафт", 60, function(self)
-            if row.data and row.data.spellID then
+        row.craftBtn = CreateStyledButton(row, "Крафт", 60, function(self, button)
+            if not self:IsEnabled() then return end
+            if not row.data or not row.data.spellID then return end
+            if button == "LeftButton" and IsShiftKeyDown() then
                 Artisan.UI:OpenCraftWindow(row.data.spellID, row.data.profID)
+            elseif button == "LeftButton" then
+                Artisan.UI:CraftItems(row.data.spellID, row.data.profID, row.qty or 1)
             end
         end)
-        row.craftBtn:SetPoint("LEFT", row, "LEFT", LAYOUT.btnCraftRightX - LAYOUT.btnWidth, 0)
-        row.craftBtn:Hide()
 
         row.reagentsBtn = CreateStyledButton(row, "Купить", 65, function(self)
             if row.data and row.data.reagents then
                 Artisan.UI:SearchReagentsOnAH(row.data.reagents)
             end
         end)
-        row.reagentsBtn:SetPoint("RIGHT", row.craftBtn, "LEFT", -2, 0)
+
+        row.qty = 1
+        row.qtyMinus = CreateStyledButton(row, "-", 16, function(self)
+            if not row.qtyInput then return end
+            row.qty = math.max(1, (row.qty or 1) - 1)
+            row.qtyInput:SetText(tostring(row.qty))
+        end)
+        row.qtyPlus = CreateStyledButton(row, "+", 16, function(self)
+            if not row.qtyInput then return end
+            row.qty = math.min(9999, (row.qty or 1) + 1)
+            row.qtyInput:SetText(tostring(row.qty))
+        end)
+        row.qtyInput = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+        row.qtyInput:SetSize(40, 20)
+        row.qtyInput:SetAutoFocus(false)
+        row.qtyInput:SetText("1")
+        row.qtyInput:SetFontObject(GameFontNormalSmall)
+        row.qtyInput:SetTextColor(1, 0.82, 0)
+        row.qtyInput:SetScript("OnTextChanged", function(self, userChanged)
+            if not userChanged then return end
+            local n = tonumber(self:GetText())
+            if n then
+                row.qty = math.max(1, math.min(9999, math.floor(n)))
+            end
+        end)
+        row.qtyInput:SetScript("OnEditFocusLost", function(self)
+            if row.qtyInput then self:SetText(tostring(row.qty or 1)) end
+        end)
+
+        row.reagentsBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+        row.craftBtn:SetPoint("RIGHT", row.reagentsBtn, "LEFT", -2, 0)
+        row.qtyPlus:SetPoint("RIGHT", row.craftBtn, "LEFT", -2, 0)
+        row.qtyInput:SetPoint("RIGHT", row.qtyPlus, "LEFT", -2, 0)
+        row.qtyMinus:SetPoint("RIGHT", row.qtyInput, "LEFT", -2, 0)
+
+        row.craftBtn:Hide()
         row.reagentsBtn:Hide()
+        row.qtyMinus:Hide()
+        row.qtyInput:Hide()
+        row.qtyPlus:Hide()
         row.reagentsBtn:SetScript("OnEnter", function(self)
             -- Mouseover visual
             if self:IsEnabled() then
@@ -495,7 +537,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             if self:IsEnabled() then
-                GameTooltip:SetText("Открыть окно крафта", 1, 1, 1)
+                GameTooltip:SetText("Скрафтить " .. tostring(row.qty or 1) .. " шт", 1, 1, 1)
             else
                 GameTooltip:SetText("Рецепт не изучен", 0.7, 0.7, 0.7)
             end
@@ -512,6 +554,11 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                         GameTooltip:AddLine("  " .. char, 0.7, 0.7, 0.7)
                     end
                 end
+            end
+
+            if self:IsEnabled() then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("Shift + ЛКМ — открыть окно профессии", 0.6, 0.6, 0.6)
             end
 
             GameTooltip:Show()
@@ -1015,6 +1062,18 @@ function Artisan.UI:UpdateScroll()
             -- Craft button
             local craftBtn = row.craftBtn
             local reagentsBtn = row.reagentsBtn
+            local function SetQtyVisible(show)
+                if show then
+                    row.qtyMinus:Show()
+                    row.qtyInput:Show()
+                    row.qtyPlus:Show()
+                    row.qtyInput:SetText(tostring(row.qty or 1))
+                else
+                    row.qtyMinus:Hide()
+                    row.qtyInput:Hide()
+                    row.qtyPlus:Hide()
+                end
+            end
             if data.spellID then
                 local known = Artisan.UI:IsRecipeKnown(data.spellID)
                 craftBtn:Show()
@@ -1022,16 +1081,19 @@ function Artisan.UI:UpdateScroll()
                     craftBtn:SetEnabledCustom(true)
                     craftBtn.spellID = data.spellID
                     craftBtn.profID = data.profID
+                    SetQtyVisible(true)
                 else
                     craftBtn:SetEnabledCustom(false)
                     craftBtn.spellID = nil
                     craftBtn.profID = nil
+                    SetQtyVisible(false)
                 end
             else
                 craftBtn:Hide()
                 craftBtn:SetEnabledCustom(false)
                 craftBtn.spellID = nil
                 craftBtn.profID = nil
+                SetQtyVisible(false)
             end
 
             -- Reagents button
@@ -1044,6 +1106,9 @@ function Artisan.UI:UpdateScroll()
             row:Hide()
             row.craftBtn:Hide()
             row.reagentsBtn:Hide()
+            row.qtyMinus:Hide()
+            row.qtyInput:Hide()
+            row.qtyPlus:Hide()
         end
     end
 end
@@ -1081,6 +1146,84 @@ function Artisan.UI:OpenCraftWindow(spellID, profID)
                     end
                 end
             end
+        end
+    end)
+end
+
+function Artisan.UI:CraftItems(spellID, profID, count)
+    if not spellID then return end
+    count = tonumber(count) or 1
+    if count < 1 then count = 1 end
+    if count > 9999 then count = 9999 end
+
+    if CastSpellByID then
+        local frame = CreateFrame("Frame")
+        local elapsed = 0
+        local done = 0
+        frame:SetScript("OnUpdate", function(self, e)
+            elapsed = elapsed + e
+            if elapsed >= 1.0 then
+                if done < count then
+                    CastSpellByID(spellID)
+                    done = done + 1
+                end
+                elapsed = 0
+            end
+            if done >= count then
+                self:SetScript("OnUpdate", nil)
+            end
+        end)
+        return
+    end
+
+    local profSpell = Artisan.UI:GetProfessionSpell(profID)
+    if not profSpell then return end
+    CastSpellByName(profSpell)
+
+    local frame = CreateFrame("Frame")
+    local elapsed = 0
+    local done = 0
+    local started = false
+    local stall = 0
+    frame:SetScript("OnUpdate", function(self, e)
+        elapsed = elapsed + e
+        if not started then
+            if TradeSkillFrame and TradeSkillFrame:IsShown() and GetNumTradeSkills() and GetNumTradeSkills() > 0 then
+                for i = 1, GetNumTradeSkills() do
+                    local link = GetTradeSkillRecipeLink(i)
+                    if link then
+                        local sID = tonumber(link:match("enchant:(%d+)"))
+                        if sID == spellID then
+                            TradeSkillFrame_SetSelection(i)
+                            TradeSkillFrame_Update()
+                            break
+                        end
+                    end
+                end
+                started = true
+                elapsed = 0
+            elseif elapsed > 2 then
+                self:SetScript("OnUpdate", nil)
+                return
+            end
+            return
+        end
+        if elapsed >= 0.6 and done < count then
+            local btn = _G["TradeSkillFrameCreateButton"]
+            if btn and btn:IsVisible() and btn:IsEnabled() then
+                btn:Click()
+                done = done + 1
+                stall = 0
+            else
+                stall = stall + e
+                if stall > 3 then
+                    self:SetScript("OnUpdate", nil)
+                    return
+                end
+            end
+            elapsed = 0
+        elseif done >= count then
+            self:SetScript("OnUpdate", nil)
         end
     end)
 end
