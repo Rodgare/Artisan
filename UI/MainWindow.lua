@@ -2,6 +2,16 @@ local addonName, Artisan = ...
 
 Artisan.UI = Artisan.UI or {}
 
+local LAYOUT = {
+    frameWidth = 800, frameHeight = 600,
+    iconX = 4, iconSize = 18, nameX = 120, nameWidth = 100,
+    colCostX = 200, colCostWidth = 100,
+    colSellX = 260, colSellWidth = 100,
+    colProfitX = 320, colProfitWidth = 110,
+    btnCraftRightX = 750, btnReagentsRightX = 685,
+    btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
+}
+
 local ROW_HEIGHT = 21
 local VISIBLE_ROWS = 23
 local WHEEL_STEP = 5
@@ -10,17 +20,16 @@ local CATEGORY_ROWS_MAX = 6
 local CATEGORY_ROW_HEIGHT = 15
 
 local COLUMNS = {
-    { key = "name",   text = "Рецепт",   x = 120, width = 220, align = "LEFT",  sortKey = "itemName" },
-    { key = "cost",   text = "Затраты",  x = 350, width = 100, align = "RIGHT", sortKey = "cost" },
-    { key = "sell",   text = "Продажа",  x = 460, width = 100, align = "RIGHT", sortKey = "sell" },
-    { key = "profit", text = "Прибыль",  x = 570, width = 110, align = "RIGHT", sortKey = "profit" },
-    { key = "craft",  text = "Крафт",    x = 690, width = 70,  align = "CENTER", sortKey = nil },
+    { key = "name",   text = "Рецепт",   x = LAYOUT.nameX, width = LAYOUT.nameWidth, align = "LEFT",  sortKey = "itemName" },
+    { key = "cost",   text = "Затраты",  x = LAYOUT.colCostX, width = LAYOUT.colCostWidth, align = "RIGHT", sortKey = "cost" },
+    { key = "sell",   text = "Продажа",  x = LAYOUT.colSellX, width = LAYOUT.colSellWidth, align = "RIGHT", sortKey = "sell" },
+    { key = "profit", text = "Прибыль",  x = LAYOUT.colProfitX, width = LAYOUT.colProfitWidth, align = "RIGHT", sortKey = "profit" },
 }
 
 local REAGENT_ICON_SIZE = 16
 local REAGENT_ICON_GAP = 2
 local MAX_REAGENT_ICONS = 5
-local REAGENT_X = 240
+local REAGENT_X = LAYOUT.reagentX
 
 function Artisan.UI:CreateMainWindow()
     if ArtisanMainFrame then return end
@@ -264,15 +273,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         self.ColumnHeaders[col.key] = btn
     end
 
-    local reagentHeader = CreateFrame("Button", nil, header)
-    reagentHeader:SetSize(130, 18)
-    reagentHeader:SetPoint("LEFT", header, "LEFT", REAGENT_X, 0)
-    local reagentHeaderText = reagentHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    reagentHeaderText:SetAllPoints(reagentHeader)
-    reagentHeaderText:SetText("Реагенты")
-    reagentHeaderText:SetJustifyH("LEFT")
-    reagentHeaderText:SetTextColor(1, 1, 1)
-
     self.RowFrames = {}
     for i = 1, VISIBLE_ROWS do
         local row = CreateFrame("Button", nil, parentFrame)
@@ -292,51 +292,22 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-        row.name:SetWidth(200)
+        row.name:SetWidth(220)
         row.name:SetJustifyH("LEFT")
 
-        row.reagentSlots = {}
-        for r = 1, MAX_REAGENT_ICONS do
-            local slot = CreateFrame("Button", nil, row)
-            slot:SetSize(REAGENT_ICON_SIZE, REAGENT_ICON_SIZE)
-            slot:SetPoint("LEFT", row, "LEFT", REAGENT_X + (r - 1) * (REAGENT_ICON_SIZE + REAGENT_ICON_GAP), 0)
-            local tex = slot:CreateTexture(nil, "ARTWORK")
-            tex:SetAllPoints(slot)
-            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-            slot.tex = tex
-            local count = slot:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            count:SetPoint("LEFT", slot, "RIGHT", 1, 0)
-            count:SetTextColor(1, 1, 1)
-            -- count:SetShadowColor(0, 0, 0, 2)
-            count:SetShadowOffset(1, -1)
-            slot.count = count
-            slot:Hide()
-            slot:SetScript("OnEnter", function(self)
-                if not self.data then return end
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetHyperlink("item:" .. self.data.itemID)
-                GameTooltip:AddLine("Кол-во: " .. self.data.count, 1, 1, 1)
-                GameTooltip:Show()
-            end)
-            slot:SetScript("OnLeave", function()
-                GameTooltip:Hide()
-            end)
-            row.reagentSlots[r] = slot
-        end
-
         row.cost = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.cost:SetPoint("LEFT", row, "LEFT", 370, 0)
-        row.cost:SetWidth(120)
+        row.cost:SetPoint("LEFT", row, "LEFT", LAYOUT.colCostX, 0)
+        row.cost:SetWidth(LAYOUT.colCostWidth)
         row.cost:SetJustifyH("RIGHT")
 
         row.sell = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.sell:SetPoint("LEFT", row, "LEFT", 500, 0)
-        row.sell:SetWidth(120)
+        row.sell:SetPoint("LEFT", row, "LEFT", LAYOUT.colSellX, 0)
+        row.sell:SetWidth(LAYOUT.colSellWidth)
         row.sell:SetJustifyH("RIGHT")
 
         row.profit = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.profit:SetPoint("LEFT", row, "LEFT", 570, 0)
-        row.profit:SetWidth(110)
+        row.profit:SetPoint("LEFT", row, "LEFT", LAYOUT.colProfitX, 0)
+        row.profit:SetWidth(LAYOUT.colProfitWidth)
         row.profit:SetJustifyH("RIGHT")
 
         -- Helper to create styled button
@@ -344,20 +315,19 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             local btn = CreateFrame("Button", nil, parent)
             btn:SetSize(width, 20)
 
+            -- Gray background
             local bg = btn:CreateTexture(nil, "BACKGROUND")
             bg:SetAllPoints()
-            bg:SetColorTexture(0.15, 0.15, 0.15, 0.95)
+            bg:SetTexture("Interface/Buttons/WHITE8X8")
+            bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
             btn.bg = bg
 
+            -- Subtle border
             local border = btn:CreateTexture(nil, "BORDER")
             border:SetAllPoints()
-            border:SetColorTexture(0.4, 0.3, 0.1, 1)
+            border:SetTexture("Interface/Buttons/WHITE8X8")
+            border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
             btn.border = border
-
-            local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
-            highlight:SetAllPoints()
-            highlight:SetColorTexture(0.5, 0.4, 0.15, 0.5)
-            btn:SetHighlightTexture(highlight)
 
             local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             txt:SetPoint("CENTER")
@@ -366,28 +336,63 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             btn.txt = txt
 
             btn:SetScript("OnClick", onClick)
+            btn:EnableMouse(true)
             btn:SetScript("OnEnter", function(self)
-                self.bg:SetColorTexture(0.25, 0.2, 0.05, 1)
-                self.border:SetColorTexture(1, 0.82, 0, 1)
+                if not self:IsEnabled() then return end
+                self.bg:SetVertexColor(0.35, 0.35, 0.5, 1)
+                self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
                 self.txt:SetTextColor(1, 1, 1)
             end)
             btn:SetScript("OnLeave", function(self)
-                self.bg:SetColorTexture(0.15, 0.15, 0.15, 0.95)
-                self.border:SetColorTexture(0.4, 0.3, 0.1, 1)
-                self.txt:SetTextColor(1, 0.82, 0)
+                -- Restore visual
+                if self:IsEnabled() then
+                    self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
+                    self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
+                    self.txt:SetTextColor(1, 0.82, 0)
+                else
+                    self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
+                    self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
+                    self.txt:SetTextColor(0.5, 0.45, 0.35)
+                end
+            end)
+            btn:SetScript("OnUpdate", function(self)
+                if self:IsMouseOver() then
+                    if self:IsEnabled() then
+                        self.bg:SetVertexColor(0.35, 0.35, 0.5, 1)
+                        self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
+                        self.txt:SetTextColor(1, 1, 1)
+                    else
+                        -- Disabled: muted, no hover effect
+                        self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
+                        self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
+                        self.txt:SetTextColor(0.5, 0.45, 0.35)
+                    end
+                else
+                    if self:IsEnabled() then
+                        self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
+                        self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
+                        self.txt:SetTextColor(1, 0.82, 0)
+                    else
+                        -- Disabled: muted, no hover effect
+                        self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
+                        self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
+                        self.txt:SetTextColor(0.5, 0.45, 0.35)
+                    end
+                end
             end)
 
             btn.SetEnabledCustom = function(self, enabled)
                 if enabled then
                     self:Enable()
-                    self.bg:SetColorTexture(0.15, 0.15, 0.15, 0.95)
-                    self.border:SetColorTexture(0.4, 0.3, 0.1, 1)
+                    self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
+                    self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
                     self.txt:SetTextColor(1, 0.82, 0)
+                    self.txt:SetText("Крафт")
                 else
                     self:Disable()
-                    self.bg:SetColorTexture(0.1, 0.1, 0.1, 0.95)
-                    self.border:SetColorTexture(0.25, 0.2, 0.1, 1)
-                    self.txt:SetTextColor(0.4, 0.35, 0.15)
+                    self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
+                    self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
+                    self.txt:SetTextColor(0.5, 0.45, 0.35)
                 end
             end
 
@@ -399,10 +404,10 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                 Artisan.UI:OpenCraftWindow(row.data.spellID, row.data.profID)
             end
         end)
-        row.craftBtn:SetPoint("LEFT", row, "LEFT", 690, 0)
+        row.craftBtn:SetPoint("LEFT", row, "LEFT", LAYOUT.btnCraftRightX - LAYOUT.btnWidth, 0)
         row.craftBtn:Hide()
 
-        row.reagentsBtn = CreateStyledButton(row, "Реагенты", 65, function(self)
+        row.reagentsBtn = CreateStyledButton(row, "Купить", 65, function(self)
             if row.data and row.data.reagents then
                 Artisan.UI:SearchReagentsOnAH(row.data.reagents)
             end
@@ -410,16 +415,38 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.reagentsBtn:SetPoint("RIGHT", row.craftBtn, "LEFT", -2, 0)
         row.reagentsBtn:Hide()
         row.reagentsBtn:SetScript("OnEnter", function(self)
+            -- Mouseover visual
+            if self:IsEnabled() then
+                self.bg:SetVertexColor(0.35, 0.35, 0.5, 1)
+                self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
+                self.txt:SetTextColor(1, 1, 1)
+            end
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText("Поиск реагентов на АХ", 1, 1, 1)
             GameTooltip:Show()
         end)
-        row.reagentsBtn:SetScript("OnLeave", function()
+        row.reagentsBtn:SetScript("OnLeave", function(self)
+            -- Restore visual
+            if self:IsEnabled() then
+                self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
+                self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
+                self.txt:SetTextColor(1, 0.82, 0)
+            else
+                self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
+                self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
+                self.txt:SetTextColor(0.5, 0.45, 0.35)
+            end
             GameTooltip:Hide()
         end)
 
         row.craftBtn:SetScript("OnEnter", function(self)
+            -- Mouseover visual
+            if self:IsEnabled() then
+                self.bg:SetVertexColor(0.35, 0.35, 0.5, 1)
+                self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
+                self.txt:SetTextColor(1, 1, 1)
+            end
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             if self:IsEnabled() then
@@ -444,11 +471,22 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
             GameTooltip:Show()
         end)
-        row.craftBtn:SetScript("OnLeave", function()
+        row.craftBtn:SetScript("OnLeave", function(self)
+            -- Restore visual
+            if self:IsEnabled() then
+                self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
+                self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
+                self.txt:SetTextColor(1, 0.82, 0)
+            else
+                self.bg:SetVertexColor(0.15, 0.1, 0.1, 0.7)
+                self.border:SetVertexColor(0.5, 0.2, 0.2, 0.8)
+                self.txt:SetTextColor(0.5, 0.25, 0.25)
+            end
             GameTooltip:Hide()
         end)
 
         self.RowFrames[i] = row
+    end
 
     -- Known recipes cache (scanned from TradeSkill window + persisted)
     Artisan.UI.KnownRecipes = Artisan.UI.KnownRecipes or {}
@@ -541,6 +579,8 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         return chars
     end
 
+    for i = 1, VISIBLE_ROWS do
+        local row = self.RowFrames[i]
         local nameButton = CreateFrame("Button", nil, row)
         nameButton:SetSize(200, ROW_HEIGHT)
         nameButton:SetPoint("LEFT", row, "LEFT", 28, 0)
@@ -561,7 +601,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         local costButton = CreateFrame("Button", nil, row)
         costButton:SetSize(120, ROW_HEIGHT)
-        costButton:SetPoint("LEFT", row, "LEFT", 370, 0)
+        costButton:SetPoint("LEFT", row, "LEFT", LAYOUT.colCostX, 0)
         costButton:SetScript("OnEnter", function(self)
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
@@ -570,10 +610,17 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             local reagents = row.data.reagents
             if reagents then
                 for _, rg in ipairs(reagents) do
-                    GameTooltip:AddLine((rg.name or ("ID: " .. rg.itemID)) .. " x" .. rg.count, 1, 1, 1)
+                    local itemName, itemLink, _, _, _, _, _, _, _, itemTexture = GetItemInfo(rg.itemID)
+                    local price = Artisan.Auctionator and Artisan.Auctionator:GetItemPrice(rg.itemID) or nil
+                    local countInBags = GetItemCount(rg.itemID) or 0
+                    local iconStr = itemTexture and ("|T" .. itemTexture .. ":16:16:0:0|t") or "|TInterface\\Icons\\INV_Misc_QuestionMark:16:16|t"
+                    local priceStr = price and (Artisan.Utils:FormatMoney(price) .. "/шт") or "—"
+                    local qtyStr = (countInBags > 0) and (" (есть " .. countInBags .. ")") or " (нет в сумках)"
+                    GameTooltip:AddLine(iconStr .. "  " .. (itemLink or (itemName or ("ID: " .. rg.itemID))) .. "  x" .. rg.count .. "  |cffffffff" .. priceStr .. "|r" .. qtyStr, 1, 1, 1)
                 end
             end
-            GameTooltip:AddLine("Итого: " .. Artisan.Utils:FormatMoneyRaw(row.data.cost), 1, 1, 1)
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Итого: |cff00ff00" .. Artisan.Utils:FormatMoneyRaw(row.data.cost) .. "|r", 1, 1, 1)
             GameTooltip:Show()
         end)
         costButton:SetScript("OnLeave", function()
@@ -865,14 +912,20 @@ function Artisan.UI:RefreshList()
     local dir = self.SortDir or -1
     table.sort(list, function(a, b)
         if not a or not b then return false end
+        local av, bv
         if key == "itemName" then
-            local an, bn = a.itemName or "", b.itemName or ""
-            if an == bn then return false end
-            return dir == 1 and an < bn or an > bn
+            av = a.itemName or ""
+            bv = b.itemName or ""
+        else
+            av = a[key] or 0
+            bv = b[key] or 0
         end
-        local av, bv = a[key] or 0, b[key] or 0
         if av == bv then return false end
-        return dir == 1 and av < bv or av > bv
+        if dir == 1 then
+            return av < bv
+        else
+            return av > bv
+        end
     end)
 
     self.CurrentList = list
@@ -885,8 +938,7 @@ function Artisan.UI:RefreshColumnHeaders()
     for _, btn in pairs(self.ColumnHeaders) do
         local col = btn.col
         if self.SortKey == col.sortKey then
-            local arrow = self.SortDir == 1 and " ▲" or " ▼"
-            btn.txt:SetText(col.text .. arrow)
+            btn.txt:SetText(col.text)
             btn.txt:SetTextColor(1, 1, 1)
         else
             btn.txt:SetText(col.text)
@@ -926,29 +978,10 @@ function Artisan.UI:UpdateScroll()
             row:Show()
 
             row.icon:SetTexture(data.itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
-            row.name:SetText(data.itemName or ("ID: " .. data.itemID))
+            row.name:SetText((data.itemName or ("ID: " .. data.itemID)) .. " [" .. (data.itemID or "?") .. "]")
             row.cost:SetText(Artisan.Utils:FormatMoney(data.cost))
             row.sell:SetText(Artisan.Utils:FormatMoney(data.sell))
             row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
-
-            local reagents = data.reagents
-            local x = REAGENT_X
-            for r = 1, MAX_REAGENT_ICONS do
-                local slot = row.reagentSlots[r]
-                local rg = reagents and reagents[r]
-                if rg then
-                    slot.data = rg
-                    slot:ClearAllPoints()
-                    slot:SetPoint("LEFT", row, "LEFT", x, 0)
-                    slot.tex:SetTexture(rg.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                    slot.count:SetText(rg.count)
-                    slot:Show()
-                    x = x + REAGENT_ICON_SIZE + 1 + slot.count:GetStringWidth() + REAGENT_ICON_GAP
-                else
-                    slot.data = nil
-                    slot:Hide()
-                end
-            end
 
             row.data = data
 

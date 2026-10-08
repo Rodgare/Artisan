@@ -10,7 +10,7 @@ local function GroupGold(gold)
         count = count + 1
         tinsert(out, 1, s:sub(i, i))
         if count % 3 == 0 and i > 1 then
-            tinsert(out, 1, " ")
+            -- no separator
         end
     end
     return table.concat(out)
