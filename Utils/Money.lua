@@ -10,14 +10,15 @@ local function GroupGold(gold)
         count = count + 1
         tinsert(out, 1, s:sub(i, i))
         if count % 3 == 0 and i > 1 then
-            -- no separator
+            tinsert(out, 1, " ")
         end
     end
     return table.concat(out)
 end
 
+-- Цветное форматирование: 1г 23с 45м, золото -- жёлтое, серебро -- серебристое, медь -- бронзовая.
 function Artisan.Utils:FormatMoney(copper)
-    if not copper or copper == 0 then return "0|cffffd700г|r" end
+    if not copper then copper = 0 end
 
     local sign = ""
     if copper < 0 then
@@ -26,13 +27,23 @@ function Artisan.Utils:FormatMoney(copper)
     end
 
     local gold = math.floor(copper / 10000)
-    if gold < 1 then return sign .. "0|cffffd700г|r" end
+    local silver = math.floor((copper % 10000) / 100)
+    local coppers = copper % 100
 
-    return sign .. GroupGold(gold) .. "|cffffd700г|r"
+    local parts = {}
+    if gold > 0 then tinsert(parts, GroupGold(gold) .. "|cffffd700г|r") end
+    if silver > 0 then tinsert(parts, silver .. "|cffc7c7cfс|r") end
+    if coppers > 0 then tinsert(parts, coppers .. "|cffeda55fм|r") end
+
+    if #parts == 0 then
+        return sign .. "0"
+    end
+    return sign .. table.concat(parts, " ")
 end
 
+-- Без цветов, для мест, где нужен только текст (склеивание в строку).
 function Artisan.Utils:FormatMoneyRaw(copper)
-    if not copper or copper == 0 then return "0г" end
+    if not copper then copper = 0 end
 
     local sign = ""
     if copper < 0 then
@@ -41,7 +52,16 @@ function Artisan.Utils:FormatMoneyRaw(copper)
     end
 
     local gold = math.floor(copper / 10000)
-    if gold < 1 then return sign .. "0г" end
+    local silver = math.floor((copper % 10000) / 100)
+    local coppers = copper % 100
 
-    return sign .. GroupGold(gold) .. "г"
+    local parts = {}
+    if gold > 0 then tinsert(parts, GroupGold(gold) .. "г") end
+    if silver > 0 then tinsert(parts, silver .. "с") end
+    if coppers > 0 then tinsert(parts, coppers .. "м") end
+
+    if #parts == 0 then
+        return sign .. "0"
+    end
+    return sign .. table.concat(parts, " ")
 end

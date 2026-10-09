@@ -17,11 +17,25 @@ local LAYOUT = {
 }
 
 local ROW_HEIGHT = 21
-local VISIBLE_ROWS = 23
+local VISIBLE_ROWS = 21
 local WHEEL_STEP = 5
 
 local CATEGORY_ROWS_MAX = 6
 local CATEGORY_ROW_HEIGHT = 15
+
+-- Вертикальная разметка хедера:
+-- ряд 1 -- заголовок (имя аддона), ряд 2 -- профессии + категории, под ними поиск,
+-- ряд 3 -- чекбоксы-фильтры, ряд 4 -- заголовки столбцов.
+local HEADER = {
+    titleH = 15,
+    profY = -24,
+    searchY = -52,
+    checkY = -78,
+    headerY = -100,
+    profSize = 27,
+    profGap = 4,
+    searchWidth = 306,
+}
 
 local COLUMNS = {
     { key = "name",   text = "Рецепт",   x = LAYOUT.nameX, width = LAYOUT.nameWidth, align = "LEFT",  sortKey = "itemName" },
@@ -140,16 +154,20 @@ local PROFESSIONS = {
 }
 
 function Artisan.UI:CreateTopBar(parentFrame)
-    local topBar = CreateFrame("Frame", "TopBar", parentFrame)
-    topBar:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 5, 5)
-    topBar:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -5, -5)
-    topBar:SetHeight((CATEGORY_ROWS_MAX - 1) * CATEGORY_ROW_HEIGHT)
-    self.TopBar = topBar
+    -- Ряд 1: заголовок с именем аддона
+    local title = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 8, -4)
+    title:SetText("Artisan")
+    title:SetTextColor(1, 0.82, 0)
+    self.WindowTitle = title
 
+    -- Ряд 2 (слева): фильтр по профессиям
+    local size = HEADER.profSize
+    local gap = HEADER.profGap
     for idx, prof in ipairs(PROFESSIONS) do
-        local btn = CreateFrame("Button", nil, topBar)
-        btn:SetPoint("LEFT", topBar, "LEFT", (idx - 1) * 32, 13)
-        btn:SetSize(28, 28)
+        local btn = CreateFrame("Button", nil, parentFrame)
+        btn:SetPoint("LEFT", parentFrame, "LEFT", 10 + (idx - 1) * (size + gap), HEADER.profY)
+        btn:SetSize(size, size)
 
         local border = btn:CreateTexture(nil, "OVERLAY")
         border:SetSize(60, 60)
@@ -186,8 +204,8 @@ function Artisan.UI:CreateTopBar(parentFrame)
     end
 
     local closeBtn = CreateFrame("Button", nil, parentFrame)
-    closeBtn:SetSize(30, 30)
-    closeBtn:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -2, -2)
+    closeBtn:SetSize(24, 24)
+    closeBtn:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -6, -6)
 
     local text = closeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     text:SetPoint("CENTER", closeBtn, "CENTER", 0, 0)
@@ -198,17 +216,18 @@ function Artisan.UI:CreateTopBar(parentFrame)
     closeBtn:SetScript("OnLeave", function() text:SetTextColor(0.6, 0.6, 0.6) end)
     closeBtn:SetScript("OnClick", function() parentFrame:Hide() end)
 
-    local categoryBar = CreateFrame("Frame", nil, topBar)
-    categoryBar:SetPoint("TOPLEFT", topBar, "TOPLEFT", 330, -8)
-    categoryBar:SetPoint("TOPRIGHT", topBar, "TOPRIGHT", -10, -4)
+    -- Ряд 2 (справа): категории аукциона
+    local categoryBar = CreateFrame("Frame", nil, parentFrame)
+    categoryBar:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 340, HEADER.profY)
+    categoryBar:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -40, -4)
     categoryBar:SetHeight(CATEGORY_ROWS_MAX * CATEGORY_ROW_HEIGHT)
     self.CategoryBar = categoryBar
 end
 
 function Artisan.UI:CreateRecipeList(parentFrame)
     local filterBox = CreateFrame("EditBox", nil, parentFrame, "InputBoxTemplate")
-    filterBox:SetSize(180, 20)
-    filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -40)
+    filterBox:SetSize(HEADER.searchWidth, 18)
+    filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, HEADER.searchY)
     filterBox:SetAutoFocus(false)
     filterBox:SetTextInsets(10, 18, 0, 0)
 
@@ -258,7 +277,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
     local showBop = CreateFrame("CheckButton", "ArtisanShowBopCheck", parentFrame, "UICheckButtonTemplate")
     showBop:SetSize(20, 20)
-    showBop:SetPoint("LEFT", filterBox, "RIGHT", 8, 0)
+    showBop:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, HEADER.checkY)
     showBop:SetChecked(false)
     local showBopLabel = _G["ArtisanShowBopCheckText"]
     if showBopLabel then
@@ -267,6 +286,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end
     showBop:SetScript("OnClick", function(self)
         Artisan.UI:SetShowBOP(self:GetChecked())
+        filterBox:SetFocus()
     end)
 
     local showKnown = CreateFrame("CheckButton", "ArtisanShowKnownCheck", parentFrame, "UICheckButtonTemplate")
@@ -280,12 +300,13 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end
     showKnown:SetScript("OnClick", function(self)
         Artisan.UI:SetShowKnown(self:GetChecked())
+        filterBox:SetFocus()
     end)
 
     local header = CreateFrame("Frame", nil, parentFrame)
-    header:SetPoint("TOPLEFT", filterBox, "BOTTOMLEFT", 0, -10)
+    header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, HEADER.headerY)
     header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, 0)
-    header:SetHeight(20)
+    header:SetHeight(18)
 
     local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame", parentFrame)
     scrollFrame:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
@@ -633,13 +654,15 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
             GameTooltip:SetHyperlink("item:" .. row.data.itemID)
+            local inBags = GetItemCount(row.data.itemID) or 0
+            GameTooltip:AddLine("В сумке: " .. inBags, 1, 1, 1)
             GameTooltip:Show()
         end)
         nameButton:SetScript("OnLeave", function()
             GameTooltip:Hide()
         end)
         nameButton:SetScript("OnClick", function(self, button)
-            if button == "LeftButton" and IsShiftKeyDown() and row.data then
+            if button == "LeftButton" and row.data then
                 Artisan.UI:SearchOnAuctionHouse(row.data.itemName)
             end
         end)
@@ -661,22 +684,110 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                     local iconStr = itemTexture and ("|T" .. itemTexture .. ":16:16:0:0|t") or "|TInterface\\Icons\\INV_Misc_QuestionMark:16:16|t"
                     local priceStr = price and (Artisan.Utils:FormatMoney(price) .. "/шт") or "—"
                     local qtyStr = (countInBags > 0) and (" (есть " .. countInBags .. ")") or " (нет в сумках)"
-                    GameTooltip:AddLine(iconStr .. "  " .. (itemLink or (itemName or ("ID: " .. rg.itemID))) .. "  x" .. rg.count .. "  |cffffffff" .. priceStr .. "|r" .. qtyStr, 1, 1, 1)
+                    GameTooltip:AddLine(iconStr .. "  " .. (itemLink or (itemName or ("ID: " .. rg.itemID))) .. "  x" .. rg.count .. "  " .. priceStr .. qtyStr, 1, 1, 1)
                 end
             end
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Итого: |cff00ff00" .. Artisan.Utils:FormatMoneyRaw(row.data.cost) .. "|r", 1, 1, 1)
+            GameTooltip:AddLine("Итого: " .. Artisan.Utils:FormatMoney(row.data.cost), 1, 1, 1)
             GameTooltip:Show()
         end)
         costButton:SetScript("OnLeave", function()
             GameTooltip:Hide()
         end)
 
-        row:SetScript("OnClick", function(self, button)
-            if button == "LeftButton" and IsShiftKeyDown() and self.data then
-                Artisan.UI:SearchOnAuctionHouse(self.data.itemName)
+        local sellButton = CreateFrame("Button", nil, row)
+        sellButton:SetSize(100, ROW_HEIGHT)
+        sellButton:SetPoint("LEFT", row, "LEFT", LAYOUT.colSellX, 0)
+        sellButton:SetScript("OnEnter", function(self)
+            if not row.data then return end
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine("Продажа", 1, 1, 1)
+            local price = Artisan.Auctionator and Artisan.Auctionator:GetItemPrice(row.data.itemID) or nil
+            if price then
+                GameTooltip:AddLine("Последняя цена на АХ: " .. Artisan.Utils:FormatMoney(price), 1, 1, 1)
+                if row.data.craftCount and row.data.craftCount > 1 then
+                    GameTooltip:AddLine("За крафт (x" .. row.data.craftCount .. "): " .. Artisan.Utils:FormatMoney(row.data.sell), 0.7, 0.7, 0.7)
+                end
+            else
+                GameTooltip:AddLine("Нет данных об аукционе", 0.7, 0.7, 0.7)
             end
+            local rec = Artisan.UI:GetSalesForItem(row.data.itemID)
+            if rec then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("Продано: " .. (rec.qty or 0) .. " шт", 1, 0.82, 0)
+                GameTooltip:AddLine("Выручка: " .. Artisan.Utils:FormatMoney(rec.revenue or 0), 1, 0.82, 0)
+                GameTooltip:AddLine("Сделок: " .. (rec.count or 0), 0.7, 0.7, 0.7)
+            end
+            GameTooltip:Show()
         end)
+        sellButton:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        local profitButton = CreateFrame("Button", nil, row)
+        profitButton:SetSize(110, ROW_HEIGHT)
+        profitButton:SetPoint("LEFT", row, "LEFT", LAYOUT.colProfitX, 0)
+        profitButton:SetScript("OnEnter", function(self)
+            if not row.data then return end
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine("Прибыль", 1, 1, 1)
+            local rec = Artisan.UI:GetSalesForItem(row.data.itemID)
+            if rec and (rec.profit or 0) ~= 0 then
+                GameTooltip:AddLine("Прибыль за всё время: " .. Artisan.Utils:FormatMoney(rec.profit or 0), 1, 0.82, 0)
+                GameTooltip:AddLine("Продано: " .. (rec.qty or 0) .. " шт", 0.7, 0.7, 0.7)
+            else
+                GameTooltip:AddLine("Нет сохранённых продаж", 0.7, 0.7, 0.7)
+                GameTooltip:AddLine("Прибыль за крафт: " .. Artisan.Utils:FormatMoney(row.data.profit), 1, 0.82, 0)
+            end
+            GameTooltip:Show()
+        end)
+        profitButton:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        -- Иконки реагентов (количество в сумке / нужно; серые, если не хватает)
+        row.reagentIcons = {}
+        local btnBlock = LAYOUT.btnReagentsWidth + LAYOUT.btnWidth + LAYOUT.btnGap
+        for k = 1, MAX_REAGENT_ICONS do
+            local icon = CreateFrame("Button", nil, row)
+            icon:SetSize(REAGENT_ICON_SIZE, REAGENT_ICON_SIZE)
+            icon:SetPoint("RIGHT", row, "RIGHT", -(btnBlock + REAGENT_ICON_GAP + (k - 1) * (REAGENT_ICON_SIZE + REAGENT_ICON_GAP)), 0)
+            icon:Hide()
+
+            local tex = icon:CreateTexture(nil, "ARTWORK")
+            tex:SetAllPoints(icon)
+            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            icon.tex = tex
+
+            local countText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            countText:SetAllPoints(icon)
+            countText:SetJustifyH("CENTER")
+            countText:SetJustifyV("CENTER")
+            local fontName = countText:GetFont()
+            countText:SetFont(fontName, 8, "OUTLINE")
+            countText:SetTextColor(1, 1, 1)
+            icon.countText = countText
+
+            icon:SetScript("OnEnter", function(self)
+                if not self.data then return end
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetHyperlink("item:" .. self.data.itemID)
+                local have = GetItemCount(self.data.itemID) or 0
+                if have < self.data.count then
+                    GameTooltip:AddLine("В сумке: " .. have .. " / нужно " .. self.data.count .. " (не хватает " .. (self.data.count - have) .. ")", 1, 1, 1)
+                else
+                    GameTooltip:AddLine("В сумке: " .. have .. " / нужно " .. self.data.count, 1, 1, 1)
+                end
+                GameTooltip:Show()
+            end)
+            icon:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+
+            tinsert(row.reagentIcons, icon)
+        end
     end
 
     local scrollBar = CreateFrame("Slider", "ArtisanRecipeScrollFrameScrollBar",
@@ -731,6 +842,8 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end)
 
     self.ScrollFrame = scrollFrame
+
+    Artisan.UI:RegisterSalesTracking()
 end
 
 function Artisan.UI:InitList()
@@ -834,9 +947,16 @@ function Artisan.UI:BuildCategoryBar()
 
     local seen = {}
     local groups = {}
+    local showBop = self.ShowBOP
+    local showKnown = self.ShowKnown
+    local function RowVisible(row)
+        if row.bop and not showBop then return false end
+        if showKnown and row.spellID and not Artisan.UI:IsRecipeKnown(row.spellID) then return false end
+        return true
+    end
     for _, row in ipairs(self.FullList) do
         local g = row.group or "Прочее"
-        if not seen[g] then
+        if RowVisible(row) and not seen[g] then
             seen[g] = true
             tinsert(groups, g)
         end
@@ -911,11 +1031,19 @@ end
 function Artisan.UI:SetShowBOP(show)
     self.ShowBOP = show and true or false
     self:RefreshList()
+    self:BuildCategoryBar()
+    if self.GroupFilter then
+        self:RefreshList()
+    end
 end
 
 function Artisan.UI:SetShowKnown(show)
     self.ShowKnown = show and true or false
     self:RefreshList()
+    self:BuildCategoryBar()
+    if self.GroupFilter then
+        self:RefreshList()
+    end
 end
 
 function Artisan.UI:ToggleSort(key)
@@ -1057,6 +1185,32 @@ function Artisan.UI:UpdateScroll()
                 reagentsBtn:Show()
             else
                 reagentsBtn:Hide()
+            end
+
+            -- Reagent icons (сумка/нужно, серые если не хватает)
+            local icons = row.reagentIcons
+            if icons then
+                for k = 1, MAX_REAGENT_ICONS do icons[k]:Hide() end
+                if data.reagents and #data.reagents > 0 then
+                    for k = 1, math.min(#data.reagents, MAX_REAGENT_ICONS) do
+                        local rg = data.reagents[k]
+                        local icon = icons[k]
+                        local have = GetItemCount(rg.itemID) or 0
+                        local need = rg.count or 0
+                        local ok = have >= need
+                        icon.tex:SetTexture(rg.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                        icon.tex:SetDesaturated(not ok)
+                        icon.tex:SetVertexColor(ok and 1 or 0.55, ok and 1 or 0.55, ok and 1 or 0.55, 1)
+                        icon.data = rg
+                        icon.countText:SetText(have .. "/" .. need)
+                        if ok then
+                            icon.countText:SetTextColor(1, 1, 1)
+                        else
+                            icon.countText:SetTextColor(1, 0.5, 0.5)
+                        end
+                        icon:Show()
+                    end
+                end
             end
         else
             row:Hide()
@@ -1548,4 +1702,140 @@ function Artisan.UI:SearchOnAuctionHouse(itemName)
     if not ok then
         DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]|r Ошибка запуска поиска: " .. tostring(err))
     end
+end
+
+-- ============================================================================
+-- Учёт продаж (для тултипов «Продажа» и «Прибыль»).
+-- Веб-лежащая история хранится в ArtisanDB.sales[персонаж][itemID].
+-- На 3.3.5 завершение продажи надёжно определяется по исчезновению лота из
+-- вкладки «Мои лоты» (AUCTION_OWNED_LIST_UPDATE). ВНИМАНИЕ: этим способом
+-- нельзя отличить «продано» от «истекло»/«отменено», поэтому статистика
+-- приблизительная. Прибыль считается как выручка (buyout*0.95) минус
+-- стоимость крафта по текущим ценам реагентов.
+-- ============================================================================
+
+function Artisan.UI:GetItemIDByName(name)
+    if name == nil or name == "" then return nil end
+    if not self.NameToItemID then
+        local idx = {}
+        for profID, recipes in pairs(Artisan.RecipeDB or {}) do
+            for sid, data in pairs(recipes) do
+                if data.itemID and data.name then
+                    idx[data.name] = data.itemID
+                end
+            end
+        end
+        self.NameToItemID = idx
+    end
+    return self.NameToItemID[name]
+end
+
+function Artisan.UI:GetCraftCost(itemID)
+    local spellID = self:GetSpellIDByItemID(itemID)
+    if not spellID then return 0 end
+    local data
+    for pid, recipes in pairs(Artisan.RecipeDB or {}) do
+        if recipes[spellID] then
+            data = recipes[spellID]
+            break
+        end
+    end
+    if not data or not data.reagents then return 0 end
+    local cost = 0
+    for rid, cnt in pairs(data.reagents) do
+        local p = Artisan.Auctionator and Artisan.Auctionator:GetItemPrice(rid) or 0
+        cost = cost + (p or 0) * cnt
+    end
+    return cost
+end
+
+function Artisan.UI:GetSalesForItem(itemID)
+    ArtisanDB = ArtisanDB or {}
+    if not ArtisanDB.sales then return nil end
+    local charName = self:GetCurrentCharKey()
+    local rec = ArtisanDB.sales[charName] and ArtisanDB.sales[charName][itemID]
+    return rec
+end
+
+function Artisan.UI:AddSale(itemID, qty, revenue, profit, charName)
+    if not itemID or not qty or qty <= 0 then return end
+    charName = charName or self:GetCurrentCharKey()
+    if not charName or charName == "" then return end
+    ArtisanDB = ArtisanDB or {}
+    ArtisanDB.sales = ArtisanDB.sales or {}
+    ArtisanDB.sales[charName] = ArtisanDB.sales[charName] or {}
+    local rec = ArtisanDB.sales[charName][itemID]
+    local t = time()
+    if rec then
+        rec.qty = (rec.qty or 0) + qty
+        rec.revenue = (rec.revenue or 0) + revenue
+        rec.profit = (rec.profit or 0) + profit
+        rec.count = (rec.count or 0) + 1
+        rec.last = t
+    else
+        ArtisanDB.sales[charName][itemID] = {
+            qty = qty,
+            revenue = revenue,
+            profit = profit,
+            count = 1,
+            first = t,
+            last = t,
+        }
+    end
+end
+
+function Artisan.UI:BuildOwnedSnapshot()
+    local snap = {}
+    local n = GetNumAuctionItems and GetNumAuctionItems("owner") or 0
+    for i = 1, n do
+        local name, _, count, _, _, _, _, _, _, buyout = GetAuctionItemInfo("owner", i)
+        if name then
+            local key = name .. "|" .. (buyout or 0)
+            snap[key] = (snap[key] or 0) + (count or 0)
+        end
+    end
+    return snap
+end
+
+function Artisan.UI:RefreshOwnedAuctions()
+    local current = self:BuildOwnedSnapshot()
+    if not self.OwnedReady then
+        self.OwnedSnapshot = current
+        self.OwnedReady = true
+        return
+    end
+    local prev = self.OwnedSnapshot or {}
+    for key, prevCount in pairs(prev) do
+        local curCount = current[key] or 0
+        if curCount < prevCount then
+            local removed = prevCount - curCount
+            local name, buyoutStr = key:match("^(.-)|(%d+)$")
+            local buyout = tonumber(buyoutStr) or 0
+            local itemID = self:GetItemIDByName(name)
+            if itemID and buyout and buyout > 0 then
+                local cost = self:GetCraftCost(itemID)
+                local revenue = buyout * removed * 0.95
+                local profit = revenue - cost * removed
+                self:AddSale(itemID, removed, revenue, profit)
+            end
+        end
+    end
+    self.OwnedSnapshot = current
+end
+
+function Artisan.UI:RegisterSalesTracking()
+    if self.salesFrame then return end
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("AUCTION_OWNED_LIST_UPDATE")
+    f:RegisterEvent("AUCTION_HOUSE_SHOW")
+    f:RegisterEvent("AUCTION_HOUSE_CLOSED")
+    f:SetScript("OnEvent", function(_, event)
+        if event == "AUCTION_OWNED_LIST_UPDATE" then
+            Artisan.UI:RefreshOwnedAuctions()
+        else
+            Artisan.UI.OwnedSnapshot = {}
+            Artisan.UI.OwnedReady = false
+        end
+    end)
+    self.salesFrame = f
 end
