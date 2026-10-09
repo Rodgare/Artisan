@@ -6,6 +6,8 @@ Artisan.UI.KnownRecipes = Artisan.UI.KnownRecipes or {}
 Artisan.UI.KnownRecipesByProf = Artisan.UI.KnownRecipesByProf or {}
 Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
 
+local profSkillCache = {}
+
 local LAYOUT = {
     frameWidth = 900, frameHeight = 600,
     compactWidth = 450,
@@ -566,6 +568,19 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end
     showKnown:SetScript("OnClick", function(self)
         Artisan.UI:SetShowKnown(self:GetChecked())
+    end)
+
+    local showSkill = CreateFrame("CheckButton", "ArtisanShowSkillCheck", parentFrame, "UICheckButtonTemplate")
+    showSkill:SetSize(20, 20)
+    showSkill:SetPoint("LEFT", showKnown, "RIGHT", 140, 0)
+    showSkill:SetChecked(false)
+    local showSkillLabel = _G["ArtisanShowSkillCheckText"]
+    if showSkillLabel then
+        showSkillLabel:SetText("Доступные по навыку")
+        showSkillLabel:SetTextColor(0.7, 0.7, 0.7)
+    end
+    showSkill:SetScript("OnClick", function(self)
+        Artisan.UI:SetShowSkillAvail(self:GetChecked())
     end)
 
     local header = CreateFrame("Frame", nil, parentFrame)
@@ -1362,6 +1377,32 @@ function Artisan.UI:SetShowKnown(show)
     end
 end
 
+function Artisan.UI:SetShowSkillAvail(show)
+    self.ShowSkillAvail = show and true or false
+    if self.ShowSkillAvail then
+        wipe(profSkillCache)
+    end
+    self:RefreshList()
+end
+
+function Artisan.UI:GetProfSkill(profID)
+    if profSkillCache[profID] ~= nil then return profSkillCache[profID] end
+    local level = nil
+    local spellName = self:GetProfessionSpell(profID)
+    if spellName and GetNumSkillLines then
+        local n = GetNumSkillLines()
+        for i = 1, n do
+            local name, _, _, lvl = GetSkillLineInfo(i)
+            if name == spellName then
+                level = lvl
+                break
+            end
+        end
+    end
+    profSkillCache[profID] = level or 0
+    return profSkillCache[profID]
+end
+
 function Artisan.UI:ToggleSort(key)
     if self.SortKey == key then
         self.SortDir = self.SortDir == 1 and -1 or 1
@@ -1381,6 +1422,7 @@ function Artisan.UI:RefreshList()
     local group = self.GroupFilter
     local showBop = self.ShowBOP
     local showKnown = self.ShowKnown
+    local showSkill = self.ShowSkillAvail
     for i = 1, #self.FullList do
         local row = self.FullList[i]
         if row then
@@ -1390,6 +1432,8 @@ function Artisan.UI:RefreshList()
             elseif filter ~= "" and not (row.itemName and row.itemName:lower():find(filter, 1, true)) then
 
             elseif showKnown and row.spellID and not Artisan.UI:IsRecipeKnown(row.spellID) then
+
+            elseif showSkill and row.skill and Artisan.UI:GetProfSkill(row.profID) < row.skill then
 
             else
                 tinsert(list, row)
