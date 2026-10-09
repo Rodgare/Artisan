@@ -9,10 +9,10 @@ Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
 local LAYOUT = {
     frameWidth = 900, frameHeight = 600,
     compactWidth = 450,
-    iconX = 4, iconSize = 18, nameX = 120, nameWidth = 90,
+    iconX = 4, iconSize = 18, nameX = 23, nameWidth = 200,
     colCostX = 195, colCostWidth = 100,
     colSellX = 250, colSellWidth = 100,
-    colProfitX = 260, colProfitWidth = 110,
+    colProfitX = 305, colProfitWidth = 100,
     colSkillX = 420, colSkillWidth = 90,
     btnCraftRightX = 750, btnReagentsRightX = 685,
     btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
@@ -55,7 +55,7 @@ local COLUMNS ={
 
 local REAGENT_ICON_SIZE = 23
 local REAGENT_ICON_GAP = 2
-local MAX_REAGENT_ICONS = 5
+local MAX_REAGENT_ICONS = 8
 local REAGENT_X = LAYOUT.reagentX
 
 function Artisan.UI:GetCurrentCharKey()
@@ -201,36 +201,28 @@ function Artisan.UI:ApplyLayout()
     local craftShown = true
     local categoryShown = not compact
 
-    local PAD = 4
-    local nameStartX = PAD + 18 + 6
-
-    local blockW = CTRL.buyW + CTRL.gap
-    if craftShown then blockW = blockW + CTRL.craftW + CTRL.gap end
-    if reagentShown then blockW = blockW + CTRL.gap + MAX_REAGENT_ICONS * CTRL.iconW + (MAX_REAGENT_ICONS - 1) * CTRL.iconGap end
-    local controlsLeft = (rw - CTRL.rightPad) - blockW
-
-    local lay = {
-        cost   = { x = LAYOUT.colCostX,   w = LAYOUT.colCostWidth },
-        sell   = { x = LAYOUT.colSellX,   w = LAYOUT.colSellWidth },
-        profit = { x = LAYOUT.colProfitX, w = LAYOUT.colProfitWidth },
-        skill  = { x = LAYOUT.colSkillX,  w = LAYOUT.colSkillWidth },
-    }
-    local colX, colW = { name = nameStartX }, { name = LAYOUT.nameWidth }
-    local firstX
-    for _, k in ipairs(COL_ORDER) do
-        if showCol[k] then
-            colX[k] = lay[k].x
-            colW[k] = lay[k].w
-            if compact and k == "profit" then
-                colX.profit = controlsLeft - CTRL.gap - lay.profit.w
-            end
-            if not firstX then firstX = colX[k] end
-        end
-    end
-    local nameW = colW.name
-    if firstX then
-        nameW = math.max(LAYOUT.nameWidth, firstX - nameStartX - COL_GAP)
-        colW.name = nameW
+    local colX, colW, nameW
+    if compact then
+        local nw = 160
+        colX = { name = 28, profit = 28 + nw + 10 }
+        colW = { name = nw, profit = 70 }
+        nameW = nw
+    else
+        colX = {
+            name = LAYOUT.nameX,
+            cost = LAYOUT.colCostX,
+            sell = LAYOUT.colSellX,
+            profit = LAYOUT.colProfitX,
+            skill = LAYOUT.colSkillX,
+        }
+        colW = {
+            name = LAYOUT.nameWidth,
+            cost = LAYOUT.colCostWidth,
+            sell = LAYOUT.colSellWidth,
+            profit = LAYOUT.colProfitWidth,
+            skill = LAYOUT.colSkillWidth,
+        }
+        nameW = LAYOUT.nameWidth
     end
 
     for k, btn in pairs(self.ColumnHeaders or {}) do
