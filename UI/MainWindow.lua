@@ -8,10 +8,10 @@ Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
 
 local LAYOUT = {
     frameWidth = 800, frameHeight = 600,
-    iconX = 4, iconSize = 18, nameX = 120, nameWidth = 100,
-    colCostX = 200, colCostWidth = 100,
-    colSellX = 260, colSellWidth = 100,
-    colProfitX = 310, colProfitWidth = 110,
+    iconX = 4, iconSize = 18, nameX = 120, nameWidth = 90,
+    colCostX = 195, colCostWidth = 100,
+    colSellX = 250, colSellWidth = 100,
+    colProfitX = 295, colProfitWidth = 110,
     colSkillX = 420, colSkillWidth = 90,
     btnCraftRightX = 750, btnReagentsRightX = 685,
     btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
@@ -27,7 +27,7 @@ local CATEGORY_ROW_HEIGHT = 15
 local HEADER = {
     titleH = 15,
     profY = -24,
-    searchY = -52,
+    searchY = -57,
     checkY = -78,
     headerY = -100,
     profSize = 27,
@@ -47,7 +47,7 @@ local COLUMNS ={
     { key = "skill",  text = "Навык",    x = LAYOUT.colSkillX, width = LAYOUT.colSkillWidth, align = "RIGHT", sortKey = "skill" },
 }
 
-local REAGENT_ICON_SIZE = 16
+local REAGENT_ICON_SIZE = 23
 local REAGENT_ICON_GAP = 2
 local MAX_REAGENT_ICONS = 5
 local REAGENT_X = LAYOUT.reagentX
@@ -801,10 +801,10 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
             local countText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             countText:SetAllPoints(icon)
-            countText:SetJustifyH("CENTER")
-            countText:SetJustifyV("CENTER")
+            countText:SetJustifyH("LEFT")
+            countText:SetJustifyV("TOP")
             local fontName = countText:GetFont()
-            countText:SetFont(fontName, 8, "OUTLINE")
+            countText:SetFont(fontName, 11, "OUTLINE")
             countText:SetTextColor(1, 1, 1)
             icon.countText = countText
 
