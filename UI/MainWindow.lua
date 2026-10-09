@@ -393,16 +393,20 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.profit:SetWidth(LAYOUT.colProfitWidth)
         row.profit:SetJustifyH("RIGHT")
 
+        row.skillGr = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.skillGr:SetPoint("RIGHT", row, "LEFT", LAYOUT.colSkillX + LAYOUT.colSkillWidth, 0)
+        row.skillGr:SetTextColor(0.6, 0.6, 0.6)
+
         row.skillG = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.skillG:SetPoint("RIGHT", row, "LEFT", LAYOUT.colSkillX + LAYOUT.colSkillWidth, 0)
+        row.skillG:SetPoint("RIGHT", row.skillGr, "LEFT", 0, 0)
         row.skillG:SetTextColor(0.2, 1, 0.2)
 
         row.skillY = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.skillY:SetPoint("RIGHT", row.skillG, "LEFT", -3, 0)
+        row.skillY:SetPoint("RIGHT", row.skillG, "LEFT", 0, 0)
         row.skillY:SetTextColor(1, 1, 0)
 
         row.skillR = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.skillR:SetPoint("RIGHT", row.skillY, "LEFT", -3, 0)
+        row.skillR:SetPoint("RIGHT", row.skillY, "LEFT", 0, 0)
         row.skillR:SetTextColor(1, 0.3, 0.3)
 
         local function CreateStyledButton(parent, text, width, onClick)
@@ -473,7 +477,8 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             end)
 
             btn.SetEnabledCustom = function(self, enabled)
-                if enabled then
+                self.customEnabled = enabled == true
+                if self.customEnabled then
                     self:Enable()
                     self:SetAlpha(1)
                     self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
@@ -481,7 +486,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                     self.txt:SetTextColor(1, 0.82, 0)
                     self.txt:SetText("Крафт")
                 else
-                    self:Disable()
+                    self:Enable()
                     self:SetAlpha(0.35)
                     self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
                     self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
@@ -493,7 +498,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end
 
         row.craftBtn = CreateStyledButton(row, "Крафт", 60, function(self, button)
-            if not self:IsEnabled() then return end
+            if not self.customEnabled then return end
             if not row.data or not row.data.spellID then return end
             if button == "LeftButton" then
                 Artisan.UI:OpenCraftWindow(row.data.spellID, row.data.profID, row.data.itemID)
@@ -539,53 +544,47 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         row.craftBtn:SetScript("OnEnter", function(self)
             -- Mouseover visual
-            if self:IsEnabled() then
+            if self.customEnabled then
                 self.bg:SetVertexColor(0.35, 0.35, 0.5, 1)
                 self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
                 self.txt:SetTextColor(1, 1, 1)
             end
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            if self:IsEnabled() then
+            if self.customEnabled then
                 GameTooltip:SetText("Открыть окно профессии и выбрать рецепт", 1, 1, 1)
             else
                 GameTooltip:SetText("Рецепт не изучен", 0.7, 0.7, 0.7)
-            end
-            if row.data.spellID then
-                Artisan.UI:AddRecipeSourcesTooltip(row.data.spellID)
-            end
-
-            local chars = Artisan.UI:GetKnownChars(row.data.spellID)
-            if #chars > 0 then
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("Изучено на:", 1, 1, 0)
-                for _, char in ipairs(chars) do
-                    local isCurrent = (char == Artisan.UI.CurrentCharKey)
-                    if isCurrent then
-                        GameTooltip:AddLine("  |cff00ff00" .. char .. "|r", 1, 1, 1)
-                    else
-                        GameTooltip:AddLine("  " .. char, 0.7, 0.7, 0.7)
+                if row.data.spellID then
+                    Artisan.UI:AddRecipeSourcesTooltip(row.data.spellID)
+                end
+                local chars = Artisan.UI:GetKnownChars(row.data.spellID)
+                if #chars > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Изучено на:", 1, 1, 0)
+                    for _, char in ipairs(chars) do
+                        local isCurrent = (char == Artisan.UI.CurrentCharKey)
+                        if isCurrent then
+                            GameTooltip:AddLine("  |cff00ff00" .. char .. "|r", 1, 1, 1)
+                        else
+                            GameTooltip:AddLine("  " .. char, 0.7, 0.7, 0.7)
+                        end
                     end
                 end
-            end
-
-            if self:IsEnabled() then
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("Открывает окно профессии с выбранным рецептом", 0.6, 0.6, 0.6)
             end
 
             GameTooltip:Show()
         end)
         row.craftBtn:SetScript("OnLeave", function(self)
             -- Restore visual
-            if self:IsEnabled() then
+            if self.customEnabled then
                 self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
                 self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
                 self.txt:SetTextColor(1, 0.82, 0)
             else
-                self.bg:SetVertexColor(0.15, 0.1, 0.1, 0.7)
-                self.border:SetVertexColor(0.5, 0.2, 0.2, 0.8)
-                self.txt:SetTextColor(0.5, 0.25, 0.25)
+                self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
+                self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
+                self.txt:SetTextColor(0.5, 0.45, 0.35)
             end
             GameTooltip:Hide()
         end)
@@ -1208,14 +1207,16 @@ function Artisan.UI:UpdateScroll()
             row.sell:SetText(Artisan.Utils:FormatMoney(data.sell))
             row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
             if data.skillText and data.skillText ~= "" then
-                local r, y, g = strsplit("/", data.skillText)
+                local r, y, g, gr = strsplit("/", data.skillText)
                 row.skillR:SetText(r or "")
                 row.skillY:SetText(y and ("/" .. y) or "")
                 row.skillG:SetText(g and ("/" .. g) or "")
+                row.skillGr:SetText(gr and ("/" .. gr) or "")
             else
                 row.skillR:SetText("")
                 row.skillY:SetText("")
                 row.skillG:SetText("")
+                row.skillGr:SetText("")
             end
 
             row.data = data

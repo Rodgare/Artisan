@@ -54,11 +54,14 @@ function Artisan.Pricing:BuildProfessionList(profID)
 
         local src = Artisan.RecipeSources and Artisan.RecipeSources[spellID]
         local skillText = ""
-        if src and src.skill and src.medium and src.easy then
+        if src and src.skill then
             if src.skill >= GetMaxSkill() then
                 skillText = tostring(src.skill)
             else
-                skillText = src.skill .. "/" .. src.medium .. "/" .. src.easy
+                skillText = tostring(src.skill)
+                if src.medium then skillText = skillText .. "/" .. src.medium end
+                if src.easy then skillText = skillText .. "/" .. src.easy end
+                if src.trivial then skillText = skillText .. "/" .. src.trivial end
             end
         end
 
