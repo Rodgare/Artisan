@@ -23,9 +23,6 @@ local WHEEL_STEP = 5
 local CATEGORY_ROWS_MAX = 6
 local CATEGORY_ROW_HEIGHT = 15
 
--- Вертикальная разметка хедера:
--- ряд 1 -- заголовок (имя аддона), ряд 2 -- профессии + категории, под ними поиск,
--- ряд 3 -- чекбоксы-фильтры, ряд 4 -- заголовки столбцов.
 local HEADER = {
     titleH = 15,
     profY = -24,
@@ -37,7 +34,11 @@ local HEADER = {
     searchWidth = 306,
 }
 
-local COLUMNS = {
+local CATEGORY_ORDER = {"Настойки", "Зелья", "Эликсиры", "Самоцветы", "Доспехи", "Оружие", "Улучшения",
+    
+}
+
+local COLUMNS ={
     { key = "name",   text = "Рецепт",   x = LAYOUT.nameX, width = LAYOUT.nameWidth, align = "LEFT",  sortKey = "itemName" },
     { key = "cost",   text = "Затраты",  x = LAYOUT.colCostX, width = LAYOUT.colCostWidth, align = "RIGHT", sortKey = "cost" },
     { key = "sell",   text = "Продажа",  x = LAYOUT.colSellX, width = LAYOUT.colSellWidth, align = "RIGHT", sortKey = "sell" },
@@ -166,7 +167,7 @@ function Artisan.UI:CreateTopBar(parentFrame)
     local gap = HEADER.profGap
     for idx, prof in ipairs(PROFESSIONS) do
         local btn = CreateFrame("Button", nil, parentFrame)
-        btn:SetPoint("LEFT", parentFrame, "LEFT", 10 + (idx - 1) * (size + gap), HEADER.profY)
+        btn:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10 + (idx - 1) * (size + gap), HEADER.profY)
         btn:SetSize(size, size)
 
         local border = btn:CreateTexture(nil, "OVERLAY")
@@ -291,7 +292,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
     local showKnown = CreateFrame("CheckButton", "ArtisanShowKnownCheck", parentFrame, "UICheckButtonTemplate")
     showKnown:SetSize(20, 20)
-    showKnown:SetPoint("LEFT", showBop, "RIGHT", 8, 0)
+    showKnown:SetPoint("LEFT", showBop, "RIGHT", 125, 0)
     showKnown:SetChecked(false)
     local showKnownLabel = _G["ArtisanShowKnownCheckText"]
     if showKnownLabel then
@@ -342,6 +343,18 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
         self.ColumnHeaders[col.key] = btn
     end
+
+    -- Заголовок колонки реагентов (выравнивается по правому краю иконок реагентов)
+    local reagentHeader = CreateFrame("Button", nil, header)
+    reagentHeader:SetSize(120, 18)
+    local reagentRight = LAYOUT.btnReagentsWidth + LAYOUT.btnWidth + LAYOUT.btnGap + REAGENT_ICON_GAP + (LAYOUT.frameWidth - 20 - 750)
+    reagentHeader:SetPoint("RIGHT", header, "RIGHT", -reagentRight, 0)
+    local reagentTxt = reagentHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    reagentTxt:SetAllPoints(reagentHeader)
+    reagentTxt:SetText("Реагенты")
+    reagentTxt:SetJustifyH("RIGHT")
+    reagentTxt:SetTextColor(0.7, 0.7, 0.7)
+    self.ReagentHeader = reagentHeader
 
     self.RowFrames = {}
     for i = 1, VISIBLE_ROWS do
@@ -786,6 +799,12 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                 GameTooltip:Hide()
             end)
 
+            icon:SetScript("OnClick", function(self, button)
+                if button == "LeftButton"and self.data and self.data.name then
+                    Artisan.UI:SearchOnAuctionHouse(self.data.name)
+                end
+            end)
+
             tinsert(row.reagentIcons, icon)
         end
     end
@@ -961,7 +980,14 @@ function Artisan.UI:BuildCategoryBar()
             tinsert(groups, g)
         end
     end
-    table.sort(groups, function(a, b) return a < b end)
+    local orderIdx = {}
+    for i, g in ipairs(CATEGORY_ORDER) do orderIdx[g] = i end
+    table.sort(groups, function(a, b)
+        local ia = orderIdx[a] or math.huge
+        local ib = orderIdx[b] or math.huge
+        if ia ~= ib then return ia < ib end
+        return a < b
+    end)
 
     local ALL = "Все"
     local labels = { ALL }
