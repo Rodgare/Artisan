@@ -287,7 +287,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end
     showBop:SetScript("OnClick", function(self)
         Artisan.UI:SetShowBOP(self:GetChecked())
-        filterBox:SetFocus()
     end)
 
     local showKnown = CreateFrame("CheckButton", "ArtisanShowKnownCheck", parentFrame, "UICheckButtonTemplate")
@@ -301,7 +300,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end
     showKnown:SetScript("OnClick", function(self)
         Artisan.UI:SetShowKnown(self:GetChecked())
-        filterBox:SetFocus()
     end)
 
     local header = CreateFrame("Frame", nil, parentFrame)
