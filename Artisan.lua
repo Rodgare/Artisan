@@ -44,3 +44,21 @@ SlashCmdList["ARTISANDB"] = function()
         DEFAULT_CHAT_FRAME:AddMessage(string.format("  %s: %d рецептов", char, c))
     end
 end
+
+SLASH_ARTDUMP1 = "/artdump"
+SlashCmdList["ARTDUMP"] = function()
+    if Artisan.UI and Artisan.UI.DumpTradeSkillFrame then
+        Artisan.UI:DumpTradeSkillFrame()
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль UI не загружен.")
+    end
+end
+
+SLASH_ARTTEST1 = "/arttestcraft"
+SlashCmdList["ARTTEST"] = function(msg)
+    if Artisan.UI and Artisan.UI.TestCraft then
+        Artisan.UI:TestCraft(tonumber(msg) or 1)
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль UI не загружен.")
+    end
+end

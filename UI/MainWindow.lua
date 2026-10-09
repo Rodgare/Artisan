@@ -449,10 +449,8 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.craftBtn = CreateStyledButton(row, "Крафт", 60, function(self, button)
             if not self:IsEnabled() then return end
             if not row.data or not row.data.spellID then return end
-            if button == "LeftButton" and IsShiftKeyDown() then
-                Artisan.UI:OpenCraftWindow(row.data.spellID, row.data.profID)
-            elseif button == "LeftButton" then
-                Artisan.UI:CraftItems(row.data.spellID, row.data.profID, row.qty or 1)
+            if button == "LeftButton" then
+                Artisan.UI:OpenCraftWindow(row.data.spellID, row.data.profID, row.data.itemID)
             end
         end)
 
@@ -462,45 +460,11 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             end
         end)
 
-        row.qty = 1
-        row.qtyMinus = CreateStyledButton(row, "-", 16, function(self)
-            if not row.qtyInput then return end
-            row.qty = math.max(1, (row.qty or 1) - 1)
-            row.qtyInput:SetText(tostring(row.qty))
-        end)
-        row.qtyPlus = CreateStyledButton(row, "+", 16, function(self)
-            if not row.qtyInput then return end
-            row.qty = math.min(9999, (row.qty or 1) + 1)
-            row.qtyInput:SetText(tostring(row.qty))
-        end)
-        row.qtyInput = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
-        row.qtyInput:SetSize(40, 20)
-        row.qtyInput:SetAutoFocus(false)
-        row.qtyInput:SetText("1")
-        row.qtyInput:SetFontObject(GameFontNormalSmall)
-        row.qtyInput:SetTextColor(1, 0.82, 0)
-        row.qtyInput:SetScript("OnTextChanged", function(self, userChanged)
-            if not userChanged then return end
-            local n = tonumber(self:GetText())
-            if n then
-                row.qty = math.max(1, math.min(9999, math.floor(n)))
-            end
-        end)
-        row.qtyInput:SetScript("OnEditFocusLost", function(self)
-            if row.qtyInput then self:SetText(tostring(row.qty or 1)) end
-        end)
-
         row.reagentsBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
         row.craftBtn:SetPoint("RIGHT", row.reagentsBtn, "LEFT", -2, 0)
-        row.qtyPlus:SetPoint("RIGHT", row.craftBtn, "LEFT", -2, 0)
-        row.qtyInput:SetPoint("RIGHT", row.qtyPlus, "LEFT", -2, 0)
-        row.qtyMinus:SetPoint("RIGHT", row.qtyInput, "LEFT", -2, 0)
 
         row.craftBtn:Hide()
         row.reagentsBtn:Hide()
-        row.qtyMinus:Hide()
-        row.qtyInput:Hide()
-        row.qtyPlus:Hide()
         row.reagentsBtn:SetScript("OnEnter", function(self)
             -- Mouseover visual
             if self:IsEnabled() then
@@ -537,7 +501,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             if not row.data then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             if self:IsEnabled() then
-                GameTooltip:SetText("Скрафтить " .. tostring(row.qty or 1) .. " шт", 1, 1, 1)
+                GameTooltip:SetText("Открыть окно профессии и выбрать рецепт", 1, 1, 1)
             else
                 GameTooltip:SetText("Рецепт не изучен", 0.7, 0.7, 0.7)
             end
@@ -558,7 +522,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
             if self:IsEnabled() then
                 GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("Shift + ЛКМ — открыть окно профессии", 0.6, 0.6, 0.6)
+                GameTooltip:AddLine("Открывает окно профессии с выбранным рецептом", 0.6, 0.6, 0.6)
             end
 
             GameTooltip:Show()
@@ -596,14 +560,21 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             local skillName, skillType = GetTradeSkillInfo(i)
             if skillType ~= "header" and skillName then
                 local link = GetTradeSkillRecipeLink(i)
+                local spellID = nil
                 if link then
-                    local spellID = tonumber(link:match("enchant:(%d+)"))
-                    if spellID then
-                        Artisan.UI.KnownRecipes[spellID] = true
-                        Artisan.UI.KnownRecipesByProf[profName][spellID] = true
-                        Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey][spellID] = true
-                        newRecipes[spellID] = true
+                    spellID = tonumber(link:match("Henchant:(%d+)"))
+                    if not spellID then
+                        local itemID = tonumber(link:match("Hitem:(%d+)"))
+                        if itemID then
+                            spellID = Artisan.UI:GetSpellIDByItemID(itemID)
+                        end
                     end
+                end
+                if spellID then
+                    Artisan.UI.KnownRecipes[spellID] = true
+                    Artisan.UI.KnownRecipesByProf[profName][spellID] = true
+                    Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey][spellID] = true
+                    newRecipes[spellID] = true
                 end
             end
         end
@@ -1062,18 +1033,6 @@ function Artisan.UI:UpdateScroll()
             -- Craft button
             local craftBtn = row.craftBtn
             local reagentsBtn = row.reagentsBtn
-            local function SetQtyVisible(show)
-                if show then
-                    row.qtyMinus:Show()
-                    row.qtyInput:Show()
-                    row.qtyPlus:Show()
-                    row.qtyInput:SetText(tostring(row.qty or 1))
-                else
-                    row.qtyMinus:Hide()
-                    row.qtyInput:Hide()
-                    row.qtyPlus:Hide()
-                end
-            end
             if data.spellID then
                 local known = Artisan.UI:IsRecipeKnown(data.spellID)
                 craftBtn:Show()
@@ -1081,19 +1040,16 @@ function Artisan.UI:UpdateScroll()
                     craftBtn:SetEnabledCustom(true)
                     craftBtn.spellID = data.spellID
                     craftBtn.profID = data.profID
-                    SetQtyVisible(true)
                 else
                     craftBtn:SetEnabledCustom(false)
                     craftBtn.spellID = nil
                     craftBtn.profID = nil
-                    SetQtyVisible(false)
                 end
             else
                 craftBtn:Hide()
                 craftBtn:SetEnabledCustom(false)
                 craftBtn.spellID = nil
                 craftBtn.profID = nil
-                SetQtyVisible(false)
             end
 
             -- Reagents button
@@ -1106,19 +1062,246 @@ function Artisan.UI:UpdateScroll()
             row:Hide()
             row.craftBtn:Hide()
             row.reagentsBtn:Hide()
-            row.qtyMinus:Hide()
-            row.qtyInput:Hide()
-            row.qtyPlus:Hide()
         end
     end
 end
 
-function Artisan.UI:OpenCraftWindow(spellID, profID)
+function Artisan.UI:GetSpellIDByItemID(itemID)
+    if not itemID then return nil end
+    if not Artisan.UI.ReverseIndex then
+        local idx = {}
+        for profID, recipes in pairs(Artisan.RecipeDB or {}) do
+            for spellID, data in pairs(recipes) do
+                if data.itemID then
+                    idx[data.itemID] = spellID
+                end
+            end
+        end
+        Artisan.UI.ReverseIndex = idx
+    end
+    return Artisan.UI.ReverseIndex[itemID]
+end
+
+function Artisan.UI:FindRecipeIndex(itemID, spellID)
+    local num = GetNumTradeSkills()
+    if num == 0 then return nil end
+    for i = 1, num do
+        local link = GetTradeSkillRecipeLink(i)
+        if link then
+            local id = tonumber(link:match("Hitem:(%d+)"))
+            if id and itemID and id == itemID then return i end
+            local sID = tonumber(link:match("Henchant:(%d+)"))
+            if sID and spellID and sID == spellID then return i end
+        end
+    end
+    return nil
+end
+
+function Artisan.UI:DumpTradeSkillFrame()
+    if not TradeSkillFrame or not TradeSkillFrame:IsShown() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Открой окно профессии сначала!")
+        return
+    end
+
+    local lines = {}
+    local count = 0
+    local maxNodes = 160
+
+    local function nodeInfo(child, depth)
+        count = count + 1
+        if count > maxNodes then return end
+        local name = child:GetName() or "?"
+        local objType = child:GetObjectType()
+        local vis = child:IsVisible() and "V" or "H"
+        local info = { string.rep("  ", depth) .. "[" .. count .. "] " .. vis .. " " .. name .. " <" .. objType .. ">" }
+
+        if objType == "Button" then
+            local fs = child:GetFontString()
+            local txt = fs and fs:GetText() or ""
+            info[#info + 1] = " txt='" .. txt .. "'"
+            info[#info + 1] = child:IsEnabled() and "" or " DISABLED"
+        elseif objType == "EditBox" then
+            info[#info + 1] = " val='" .. (child:GetText() or "") .. "'"
+        elseif objType == "CheckButton" then
+            local fs = child:GetFontString()
+            local txt = fs and fs:GetText() or ""
+            info[#info + 1] = " checked=" .. tostring(child:GetChecked()) .. " txt='" .. txt .. "'"
+        elseif objType == "Slider" then
+            info[#info + 1] = " val=" .. tostring(child:GetValue())
+        elseif objType == "FontString" then
+            local txt = child:GetText() or ""
+            if txt ~= "" then
+                info[#info + 1] = " txt='" .. txt .. "'"
+            end
+        end
+
+        table.insert(lines, table.concat(info, ""))
+    end
+
+    local function walk(parent, depth)
+        if depth > 7 then return end
+        local numChildren = parent:GetNumChildren()
+        for i = 1, numChildren do
+            if count > maxNodes then break end
+            local child = select(i, parent:GetChildren())
+            if child then
+                nodeInfo(child, depth)
+                walk(child, depth + 1)
+            end
+        end
+    end
+
+    nodeInfo(TradeSkillFrame, 0)
+    walk(TradeSkillFrame, 1)
+
+    local sel = GetTradeSkillSelectionIndex()
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r === ДАМП TradeSkillFrame (" .. count .. " узлов) selection=" .. tostring(sel) .. " ===")
+    for _, line in ipairs(lines) do
+        DEFAULT_CHAT_FRAME:AddMessage("|cff888888[Artisan]|r " .. line)
+    end
+
+    local keywords = { "оздат", "reate", "рафт", "колич", "создать", "всё", "all", "x", "Craft", "Create" }
+    local founded = {}
+    local function targetWalk(parent)
+        for i = 1, parent:GetNumChildren() do
+            local child = select(i, parent:GetChildren())
+            if child then
+                local objType = child:GetObjectType()
+                local name = child:GetName() or "?"
+                local txt = ""
+                if objType == "FontString" then
+                    txt = child:GetText() or ""
+                elseif child.GetFontString then
+                    local fs = child:GetFontString()
+                    txt = fs and fs:GetText() or ""
+                end
+                local match = (objType == "EditBox") or (objType == "Slider")
+                if txt ~= "" then
+                    for _, kw in ipairs(keywords) do
+                        if txt:find(kw, 1, true) then
+                            match = true
+                            break
+                        end
+                    end
+                end
+                if not match and name ~= "?" then
+                    for _, kw in ipairs(keywords) do
+                        if name:find(kw, 1, true) then
+                            match = true
+                            break
+                        end
+                    end
+                end
+                if match and #founded < 40 then
+                    local vis = child:IsVisible() and "V" or "H"
+                    local extra = ""
+                    if objType == "EditBox" then
+                        extra = " val='" .. (child:GetText() or "") .. "'"
+                    elseif objType == "Slider" then
+                        extra = " val=" .. tostring(child:GetValue())
+                    elseif child.GetChecked then
+                        extra = " checked=" .. tostring(child:GetChecked())
+                    end
+                    local enabled = child.IsEnabled and child:IsEnabled()
+                    table.insert(founded, string.format("%s [%s] %s %s txt='%s'%s",
+                        vis, objType, name, enabled and "" or "DISABLED", txt, extra))
+                end
+                targetWalk(child)
+            end
+        end
+    end
+    targetWalk(TradeSkillFrame)
+
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r === ЦЕЛЕВЫЕ УЗЛЫ (" .. #founded .. ") ===")
+    for _, line in ipairs(founded) do
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff8844[Artisan]|r " .. line)
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r === КОНЕЦ ДАМПА ===")
+
+    ArtisanDebugDB = ArtisanDebugDB or {}
+    ArtisanDebugDB.dump = lines
+    ArtisanDebugDB.founded = founded
+    ArtisanDebugDB.selection = sel
+    ArtisanDebugDB.updated = time()
+    DEFAULT_CHAT_FRAME:AddMessage("|cff888888[Artisan]|r Дамп сохранён в ArtisanDebugDB (файл SavedVariables\\Artisan.lua на диске).")
+end
+
+function Artisan.UI:GetCreateButton()
+    local candidates = {
+        "TradeSkillFrameCreateButton",
+        "TradeSkillCreateButton",
+        "TradeSkillFrame_CreateButton",
+        "TradeSkillFrameCreate",
+        "CreateButton",
+    }
+    for _, name in ipairs(candidates) do
+        local btn = _G[name]
+        if btn and btn:GetObjectType() == "Button" then
+            return btn
+        end
+    end
+
+    if not TradeSkillFrame then return nil end
+
+    local function scan(parent, depth)
+        if depth > 8 then return nil end
+        for i = 1, parent:GetNumChildren() do
+            local child = select(i, parent:GetChildren())
+            if child then
+                if child:GetObjectType() == "Button" and child:IsVisible() then
+                    local fs = child:GetFontString()
+                    local text = fs and fs:GetText() or ""
+                    if text:find("оздат", 1, true) or text:find("reate", 1, true) or text:find("рафт", 1, true) then
+                        return child
+                    end
+                end
+                local found = scan(child, depth + 1)
+                if found then return found end
+            end
+        end
+        return nil
+    end
+
+    return scan(TradeSkillFrame, 0)
+end
+
+function Artisan.UI:DebugDumpButtons()
+    if not TradeSkillFrame then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff888888[Artisan]|r TradeSkillFrame не существует")
+        return
+    end
+    local count = 0
+    local function walk(parent, depth)
+        if count >= 20 or depth > 4 then return end
+        for i = 1, parent:GetNumChildren() do
+            if count >= 20 then return end
+            local child = select(i, parent:GetChildren())
+            if child then
+                count = count + 1
+                if child:GetObjectType() == "Button" then
+                    local fs = child:GetFontString()
+                    local text = fs and fs:GetText() or ""
+                    local shown = child:IsVisible() and "shown" or "hidden"
+                    DEFAULT_CHAT_FRAME:AddMessage("|cff888888[Artisan]|r btn: " .. (child:GetName() or "?") .. " t='" .. text .. "' " .. shown)
+                end
+                walk(child, depth + 1)
+            end
+        end
+    end
+    walk(TradeSkillFrame, 0)
+end
+
+function Artisan.UI:OpenCraftWindow(spellID, profID, itemID)
     if not spellID then return end
 
     local profSpell = Artisan.UI:GetProfessionSpell(profID)
     if not profSpell then
         DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Неизвестная профессия: " .. tostring(profID))
+        return
+    end
+
+    if InCombatLockdown() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Нельзя открыть профессию в бою.")
         return
     end
 
@@ -1130,102 +1313,139 @@ function Artisan.UI:OpenCraftWindow(spellID, profID)
         elapsed = elapsed + e
         if elapsed > 2 then
             self:SetScript("OnUpdate", nil)
+            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Окно профессии не открылось.")
             return
         end
         if TradeSkillFrame and TradeSkillFrame:IsShown() then
             self:SetScript("OnUpdate", nil)
-            -- Find the recipe index
-            for i = 1, GetNumTradeSkills() do
-                local link = GetTradeSkillRecipeLink(i)
-                if link then
-                    local sID = tonumber(link:match("enchant:(%d+)"))
-                    if sID == spellID then
-                        TradeSkillFrame_SetSelection(i)
-                        TradeSkillFrame_Update()
-                        break
-                    end
-                end
+            local idx = Artisan.UI:FindRecipeIndex(itemID, spellID)
+            if idx then
+                TradeSkillFrame_SetSelection(idx)
+                TradeSkillFrame_Update()
+            else
+                DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Рецепт не найден в окне профессии.")
             end
         end
     end)
 end
 
-function Artisan.UI:CraftItems(spellID, profID, count)
-    if not spellID then return end
-    count = tonumber(count) or 1
-    if count < 1 then count = 1 end
-    if count > 9999 then count = 9999 end
-
-    if CastSpellByID then
-        local frame = CreateFrame("Frame")
-        local elapsed = 0
-        local done = 0
-        frame:SetScript("OnUpdate", function(self, e)
-            elapsed = elapsed + e
-            if elapsed >= 1.0 then
-                if done < count then
-                    CastSpellByID(spellID)
-                    done = done + 1
+function Artisan.UI:CountReagentsForSelection(sel)
+    sel = sel or GetTradeSkillSelectionIndex()
+    if not sel or sel == 0 then return 0 end
+    local num = 0
+    if GetTradeSkillNumReagents then
+        num = GetTradeSkillNumReagents(sel) or 0
+    end
+    local total = 0
+    for i = 1, num do
+        if GetTradeSkillReagentItemLink then
+            local link = GetTradeSkillReagentItemLink(sel, i)
+            if link then
+                local itemID = tonumber(link:match("item:(%d+)"))
+                if itemID then
+                    total = total + (GetItemCount(itemID) or 0)
                 end
-                elapsed = 0
             end
-            if done >= count then
-                self:SetScript("OnUpdate", nil)
-            end
-        end)
+        end
+    end
+    return total
+end
+
+function Artisan.UI:TestCraft(count)
+    if not TradeSkillFrame or not TradeSkillFrame:IsShown() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Открой окно профессии и выбери рецепт, затем /arttestcraft N")
         return
     end
+    local sel = GetTradeSkillSelectionIndex()
+    if not sel or sel == 0 then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Выбери рецепт в окне профессии.")
+        return
+    end
+    local name = select(1, GetTradeSkillInfo(sel))
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("|cffff8844[Artisan]:|r === TEST craft: idx=%d name='%s' count=%d ===", sel, tostring(name), count))
 
-    local profSpell = Artisan.UI:GetProfessionSpell(profID)
-    if not profSpell then return end
-    CastSpellByName(profSpell)
-
-    local frame = CreateFrame("Frame")
-    local elapsed = 0
-    local done = 0
-    local started = false
-    local stall = 0
-    frame:SetScript("OnUpdate", function(self, e)
-        elapsed = elapsed + e
-        if not started then
-            if TradeSkillFrame and TradeSkillFrame:IsShown() and GetNumTradeSkills() and GetNumTradeSkills() > 0 then
-                for i = 1, GetNumTradeSkills() do
-                    local link = GetTradeSkillRecipeLink(i)
-                    if link then
-                        local sID = tonumber(link:match("enchant:(%d+)"))
-                        if sID == spellID then
-                            TradeSkillFrame_SetSelection(i)
-                            TradeSkillFrame_Update()
-                            break
-                        end
-                    end
-                end
-                started = true
-                elapsed = 0
-            elseif elapsed > 2 then
+    local function awaitThen(seconds, callback)
+        local f = CreateFrame("Frame")
+        local t = 0
+        f:SetScript("OnUpdate", function(self, e)
+            t = t + e
+            if t >= seconds then
                 self:SetScript("OnUpdate", nil)
-                return
+                callback()
             end
+        end)
+    end
+
+    local methods = {}
+
+    if CastSpellByName then
+        table.insert(methods, {
+            label = "CastSpellByName('" .. tostring(name) .. "')",
+            run = function() pcall(CastSpellByName, name) end
+        })
+    end
+    if CastSpellByID then
+        local input = _G["TradeSkillInputBox"]
+        table.insert(methods, {
+            label = "CastSpellByID+InputBox",
+            run = function()
+                if input then
+                    input:SetText(tostring(count))
+                    local h = input:GetScript("OnTextChanged")
+                    if h then pcall(h, input, true) end
+                end
+                local sID = select(3, GetTradeSkillInfo(sel))
+                if sID then pcall(CastSpellByID, sID) end
+            end
+        })
+    end
+    local createBtn = Artisan.UI:GetCreateButton()
+    local createAllBtn = _G["TradeSkillCreateAllButton"]
+    if createBtn then
+        table.insert(methods, {
+            label = "Click 'Создать' (TradeSkillCreateButton)",
+            run = function() pcall(createBtn.Click, createBtn) end
+        })
+    end
+    if createAllBtn then
+        table.insert(methods, {
+            label = "Click 'Создать все' (TradeSkillCreateAllButton)",
+            run = function() pcall(createAllBtn.Click, createAllBtn) end
+        })
+    end
+
+    local i = 1
+    local function nextMethod()
+        if i > #methods then
+            DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r === TEST завершён: ни один метод не сработал ===")
             return
         end
-        if elapsed >= 0.6 and done < count then
-            local btn = _G["TradeSkillFrameCreateButton"]
-            if btn and btn:IsVisible() and btn:IsEnabled() then
-                btn:Click()
-                done = done + 1
-                stall = 0
-            else
-                stall = stall + e
-                if stall > 3 then
-                    self:SetScript("OnUpdate", nil)
-                    return
-                end
+        local m = methods[i]
+        local before = Artisan.UI:CountReagentsForSelection(sel)
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff8844[Artisan]:|r Метод: " .. m.label)
+        pcall(m.run)
+        awaitThen(2, function()
+            local after = Artisan.UI:CountReagentsForSelection(sel)
+            if after < before then
+                DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[Artisan]:|r   СРАБОТАЛО: %d -> %d", before, after))
+                return
             end
-            elapsed = 0
-        elseif done >= count then
-            self:SetScript("OnUpdate", nil)
+            DEFAULT_CHAT_FRAME:AddMessage(string.format("|cffff0000[Artisan]:|r   нет эффекта: %d -> %d", before, after))
+            i = i + 1
+            nextMethod()
+        end)
+    end
+    nextMethod()
+end
+
+function Artisan.UI:GetItemIDBySpellID(spellID)
+    for profID, recipes in pairs(Artisan.RecipeDB or {}) do
+        local data = recipes[spellID]
+        if data and data.itemID then
+            return data.itemID
         end
-    end)
+    end
+    return nil
 end
 
 function Artisan.UI:GetProfessionSpell(profID)
