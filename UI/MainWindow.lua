@@ -12,6 +12,7 @@ local LAYOUT = {
     colCostX = 200, colCostWidth = 100,
     colSellX = 260, colSellWidth = 100,
     colProfitX = 320, colProfitWidth = 110,
+    colSkillX = 440, colSkillWidth = 90,
     btnCraftRightX = 750, btnReagentsRightX = 685,
     btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
 }
@@ -43,6 +44,7 @@ local COLUMNS ={
     { key = "cost",   text = "Затраты",  x = LAYOUT.colCostX, width = LAYOUT.colCostWidth, align = "RIGHT", sortKey = "cost" },
     { key = "sell",   text = "Продажа",  x = LAYOUT.colSellX, width = LAYOUT.colSellWidth, align = "RIGHT", sortKey = "sell" },
     { key = "profit", text = "Прибыль",  x = LAYOUT.colProfitX, width = LAYOUT.colProfitWidth, align = "RIGHT", sortKey = "profit" },
+    { key = "skill",  text = "Навык",    x = LAYOUT.colSkillX, width = LAYOUT.colSkillWidth, align = "RIGHT", sortKey = "skill" },
 }
 
 local REAGENT_ICON_SIZE = 16
@@ -391,6 +393,18 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.profit:SetWidth(LAYOUT.colProfitWidth)
         row.profit:SetJustifyH("RIGHT")
 
+        row.skillG = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.skillG:SetPoint("RIGHT", row, "LEFT", LAYOUT.colSkillX + LAYOUT.colSkillWidth, 0)
+        row.skillG:SetTextColor(0.2, 1, 0.2)
+
+        row.skillY = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.skillY:SetPoint("RIGHT", row.skillG, "LEFT", -3, 0)
+        row.skillY:SetTextColor(1, 1, 0)
+
+        row.skillR = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.skillR:SetPoint("RIGHT", row.skillY, "LEFT", -3, 0)
+        row.skillR:SetTextColor(1, 0.3, 0.3)
+
         local function CreateStyledButton(parent, text, width, onClick)
             local btn = CreateFrame("Button", nil, parent)
             btn:SetSize(width, 20)
@@ -536,6 +550,9 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                 GameTooltip:SetText("Открыть окно профессии и выбрать рецепт", 1, 1, 1)
             else
                 GameTooltip:SetText("Рецепт не изучен", 0.7, 0.7, 0.7)
+                if row.data.spellID then
+                    Artisan.UI:AddRecipeSourcesTooltip(row.data.spellID)
+                end
             end
 
             local chars = Artisan.UI:GetKnownChars(row.data.spellID)
@@ -641,6 +658,17 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
     function Artisan.UI:IsRecipeKnown(spellID)
         return Artisan.UI.KnownRecipes[spellID] == true
+    end
+
+    -- Добавляет в тултип компактную подсказку, как получить рецепт.
+    function Artisan.UI:AddRecipeSourcesTooltip(spellID)
+        if not Artisan.RecipeSources then return end
+        local data = Artisan.RecipeSources[spellID]
+        if not data or not data.hint or data.hint == "" then return end
+
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Как получить:", 1, 0.82, 0)
+        GameTooltip:AddLine("  " .. data.hint, 1, 1, 1)
     end
 
     function Artisan.UI:GetKnownChars(spellID)
@@ -1179,6 +1207,16 @@ function Artisan.UI:UpdateScroll()
             row.cost:SetText(Artisan.Utils:FormatMoney(data.cost))
             row.sell:SetText(Artisan.Utils:FormatMoney(data.sell))
             row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
+            if data.skillText and data.skillText ~= "" then
+                local r, y, g = strsplit("/", data.skillText)
+                row.skillR:SetText(r or "")
+                row.skillY:SetText(y and ("/" .. y) or "")
+                row.skillG:SetText(g and ("/" .. g) or "")
+            else
+                row.skillR:SetText("")
+                row.skillY:SetText("")
+                row.skillG:SetText("")
+            end
 
             row.data = data
 

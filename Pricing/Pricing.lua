@@ -8,6 +8,20 @@ local textureCache = {}
 local itemTypeCache = {}
 local subTypeCache = {}
 
+local maxSkill = nil
+local function GetMaxSkill()
+    if maxSkill ~= nil then return maxSkill end
+    maxSkill = 0
+    if Artisan.RecipeSources then
+        for _, src in pairs(Artisan.RecipeSources) do
+            if src and src.skill and src.skill > maxSkill then
+                maxSkill = src.skill
+            end
+        end
+    end
+    return maxSkill
+end
+
 local function GetItemInfoCached(itemID)
     if nameCache[itemID] == nil then
         local name, _, _, _, _, itemType, subType, _, _, texture = GetItemInfo(itemID)
@@ -38,6 +52,16 @@ function Artisan.Pricing:BuildProfessionList(profID)
 
         local itemName, itemTexture, itemType, itemSubType = GetItemInfoCached(data.itemID)
 
+        local src = Artisan.RecipeSources and Artisan.RecipeSources[spellID]
+        local skillText = ""
+        if src and src.skill and src.medium and src.easy then
+            if src.skill >= GetMaxSkill() then
+                skillText = tostring(src.skill)
+            else
+                skillText = src.skill .. "/" .. src.medium .. "/" .. src.easy
+            end
+        end
+
         local reagents = {}
         if data.reagents then
             for reagentID, count in pairs(data.reagents) do
@@ -62,6 +86,8 @@ function Artisan.Pricing:BuildProfessionList(profID)
             cost = totalCost,
             sell = sellPrice,
             profit = profit,
+            skill = src and src.skill,
+            skillText = skillText,
             reagents = reagents,
         })
     end
