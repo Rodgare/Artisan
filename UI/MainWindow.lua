@@ -11,8 +11,8 @@ local LAYOUT = {
     iconX = 4, iconSize = 18, nameX = 120, nameWidth = 100,
     colCostX = 200, colCostWidth = 100,
     colSellX = 260, colSellWidth = 100,
-    colProfitX = 320, colProfitWidth = 110,
-    colSkillX = 440, colSkillWidth = 90,
+    colProfitX = 310, colProfitWidth = 110,
+    colSkillX = 420, colSkillWidth = 90,
     btnCraftRightX = 750, btnReagentsRightX = 685,
     btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
 }
@@ -550,9 +550,9 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                 GameTooltip:SetText("Открыть окно профессии и выбрать рецепт", 1, 1, 1)
             else
                 GameTooltip:SetText("Рецепт не изучен", 0.7, 0.7, 0.7)
-                if row.data.spellID then
-                    Artisan.UI:AddRecipeSourcesTooltip(row.data.spellID)
-                end
+            end
+            if row.data.spellID then
+                Artisan.UI:AddRecipeSourcesTooltip(row.data.spellID)
             end
 
             local chars = Artisan.UI:GetKnownChars(row.data.spellID)
