@@ -8,33 +8,19 @@ Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
 
 local LAYOUT = {
     frameWidth = 900, frameHeight = 600,
-    minWidth = 360, maxWidth = 1200,
-    minHeight = 360, maxHeight = 900,
+    compactWidth = 450,
     iconX = 4, iconSize = 18, nameX = 120, nameWidth = 90,
     colCostX = 195, colCostWidth = 100,
     colSellX = 250, colSellWidth = 100,
-    colProfitX = 295, colProfitWidth = 110,
+    colProfitX = 260, colProfitWidth = 110,
     colSkillX = 420, colSkillWidth = 90,
     btnCraftRightX = 750, btnReagentsRightX = 685,
     btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
 }
 
--- Responsive layout config
-local COL_W = { cost = 72, sell = 70, profit = 84, skill = 84 }
+local COL_W = { cost = 72, sell = 70, profit = 70, skill = 84 }
 local COL_GAP = 10
 local CTRL = { rightPad = 8, gap = 4, buyW = 62, craftW = 56, iconW = 23, iconGap = 2 }
-local BREAKPOINTS = {
-    { w = 900, cols = { "name", "cost", "sell", "profit", "skill" }, category = true,  reagents = true,  craft = true },
-    { w = 760, cols = { "name", "cost", "sell", "profit" },          category = false, reagents = true,  craft = true },
-    { w = 600, cols = { "name", "cost", "profit" },                  category = false, reagents = false, craft = false },
-    { w = 0,   cols = { "name", "profit" },                          category = false, reagents = false, craft = false },
-}
-local function GetBreakpoint(W)
-    for _, bp in ipairs(BREAKPOINTS) do
-        if W >= bp.w then return bp end
-    end
-    return BREAKPOINTS[#BREAKPOINTS]
-end
 local COL_ORDER = { "cost", "sell", "profit", "skill" }
 
 local ROW_HEIGHT = 21
@@ -56,7 +42,7 @@ local HEADER = {
 }
 
 local CATEGORY_ORDER = {"Настойки", "Зелья", "Эликсиры", "Самоцветы", "Доспехи", "Оружие", "Улучшения",
-    
+
 }
 
 local COLUMNS ={
@@ -120,9 +106,11 @@ end)
 function Artisan.UI:CreateMainWindow()
     if ArtisanMainFrame then return end
 
+    self.Compact = ArtisanDB and ArtisanDB.compactUI == true or false
+
     local frame = CreateFrame("Frame", "ArtisanMainFrame", UIParent)
     tinsert(UISpecialFrames, "ArtisanMainFrame")
-    frame:SetSize(LAYOUT.frameWidth, LAYOUT.frameHeight)
+    frame:SetSize(self.Compact and LAYOUT.compactWidth or LAYOUT.frameWidth, LAYOUT.frameHeight)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("FULLSCREEN")
 
@@ -156,108 +144,95 @@ function Artisan.UI:CreateMainWindow()
         Artisan.UI:ApplyLayout()
     end)
 
-    -- Отслеживаем ширину и применяем адаптивную раскладку при изменении
-    frame:SetScript("OnUpdate", function(self)
-        local w = self:GetWidth()
-        local h = self:GetHeight()
-        if w < LAYOUT.minWidth then w = LAYOUT.minWidth self:SetWidth(w) end
-        if w > LAYOUT.maxWidth then w = LAYOUT.maxWidth self:SetWidth(w) end
-        if h < LAYOUT.minHeight then h = LAYOUT.minHeight self:SetHeight(h) end
-        if h > LAYOUT.maxHeight then h = LAYOUT.maxHeight self:SetHeight(h) end
-        if w ~= Artisan.UI.LastWidth then
-            Artisan.UI.LastWidth = w
-            Artisan.UI:ApplyLayout()
-        end
-    end)
-
-    -- Уголок для ресайза (правый нижний угол): короткая полоска у угла, длиннее по диагонали вверх-влево
-    frame:SetResizable(true)
-    local resizer = CreateFrame("Frame", nil, frame)
-    resizer:SetSize(22, 22)
-    resizer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    resizer:EnableMouse(true)
-    resizer:RegisterForDrag("LeftButton")
-    for i = 0, 2 do
-        local line = resizer:CreateTexture(nil, "ARTWORK")
-        line:SetTexture("Interface/Buttons/WHITE8X8")
-        line:SetVertexColor(1, 1, 1, 0.6)
-        line:SetSize(4 + i * 5, 1)
-        line:SetPoint("CENTER", resizer, "CENTER", 6 - i * 4, -6 + i * 4)
-        line:SetRotation(0.78539816339)
-    end
-
-    resizer:SetScript("OnDragStart", function(self)
-        self:GetParent():StartSizing("BOTTOMRIGHT")
-    end)
-    resizer:SetScript("OnDragStop", function(self)
-        self:GetParent():StopMovingOrSizing()
-    end)
-
     frame:Hide()
 
     Artisan.UI.MainFrame = frame
 
     self:CreateTopBar(frame)
     self:CreateRecipeList(frame)
+    self:UpdateToggleButton()
     self:ApplyLayout()
 end
 
--- Адаптивная раскладка: позиционирует столбцы, кнопки и панели по ширине контента.
+function Artisan.UI:ToggleSize()
+    self.Compact = not self.Compact
+    if ArtisanDB then ArtisanDB.compactUI = self.Compact end
+    if self.MainFrame then
+        self.MainFrame:SetSize(self.Compact and LAYOUT.compactWidth or LAYOUT.frameWidth, LAYOUT.frameHeight)
+        self:ApplyLayout()
+    end
+    self:UpdateToggleButton()
+end
+
+function Artisan.UI:UpdateToggleButton()
+    local b = self.ToggleButton
+    if not b then return end
+    local maxI = self.ToggleMax
+    local resI = self.ToggleRestore
+    if not maxI or not resI then return end
+    if self.Compact then
+        maxI:Show()
+        resI:Hide()
+        b.tip = "Развернуть (полный вид)"
+    else
+        maxI:Hide()
+        resI:Show()
+        b.tip = "Свернуть (компактный вид)"
+    end
+end
+
 function Artisan.UI:ApplyLayout()
     local scroll = self.ScrollFrame
     if not scroll then return end
-    local W = self.MainFrame and self.MainFrame:GetWidth() or LAYOUT.frameWidth
-    local rw = (scroll:GetWidth() or 0) - 18
-    if rw <= 0 then rw = W - 20 end
 
-    local bp = GetBreakpoint(W)
-    local showCol = {}
-    for _, k in ipairs(bp.cols) do showCol[k] = true end
+    local compact = self.Compact == true
+
+    local targetW = compact and LAYOUT.compactWidth or LAYOUT.frameWidth
+    local W = targetW
+    local rw = targetW - 38
+
+    local showCol = { name = true, profit = true }
+    if not compact then
+        showCol.cost = true
+        showCol.sell = true
+        showCol.skill = true
+    end
+    local reagentShown = not compact
+    local craftShown = true
+    local categoryShown = not compact
 
     local PAD = 4
     local nameStartX = PAD + 18 + 6
 
-    -- Правый блок управления: Купить + (Крафт) + (иконки реагентов)
-    local craftShown = bp.craft
-    local reagentShown = bp.reagents
     local blockW = CTRL.buyW + CTRL.gap
     if craftShown then blockW = blockW + CTRL.craftW + CTRL.gap end
     if reagentShown then blockW = blockW + CTRL.gap + MAX_REAGENT_ICONS * CTRL.iconW + (MAX_REAGENT_ICONS - 1) * CTRL.iconGap end
     local controlsLeft = (rw - CTRL.rightPad) - blockW
 
-    -- Колонки слева, от name к числовым, с распределением свободного места
-    local nums = {}
+    local lay = {
+        cost   = { x = LAYOUT.colCostX,   w = LAYOUT.colCostWidth },
+        sell   = { x = LAYOUT.colSellX,   w = LAYOUT.colSellWidth },
+        profit = { x = LAYOUT.colProfitX, w = LAYOUT.colProfitWidth },
+        skill  = { x = LAYOUT.colSkillX,  w = LAYOUT.colSkillWidth },
+    }
+    local colX, colW = { name = nameStartX }, { name = LAYOUT.nameWidth }
+    local firstX
     for _, k in ipairs(COL_ORDER) do
-        if showCol[k] then nums[#nums + 1] = k end
-    end
-    local n = #nums
-    local numTotal = 0
-    for _, k in ipairs(nums) do numTotal = numTotal + COL_W[k] end
-    if n > 1 then numTotal = numTotal + (n - 1) * COL_GAP end
-
-    local available = (controlsLeft - 8) - nameStartX
-    local nameMin, nameCap = 80, 260
-    local trailing = (n > 0) and COL_GAP or 0
-    local free = available - (nameMin + numTotal + trailing)
-    local nameW, gap = nameMin, COL_GAP
-    if free > 0 then
-        if free <= (nameCap - nameMin) then
-            nameW = nameMin + free
-        else
-            nameW = nameCap
-            gap = COL_GAP + (free - (nameCap - nameMin)) / math.max(1, n)
+        if showCol[k] then
+            colX[k] = lay[k].x
+            colW[k] = lay[k].w
+            if compact and k == "profit" then
+                colX.profit = controlsLeft - CTRL.gap - lay.profit.w
+            end
+            if not firstX then firstX = colX[k] end
         end
     end
-
-    local colX, colW = { name = nameStartX }, { name = nameW }
-    local cx = nameStartX + nameW + gap
-    for _, k in ipairs(nums) do
-        colX[k] = cx
-        colW[k] = COL_W[k]
-        cx = cx + COL_W[k] + gap
+    local nameW = colW.name
+    if firstX then
+        nameW = math.max(LAYOUT.nameWidth, firstX - nameStartX - COL_GAP)
+        colW.name = nameW
     end
 
-    -- Заголовки колонок
     for k, btn in pairs(self.ColumnHeaders or {}) do
         if showCol[k] and colX[k] then
             btn:Show()
@@ -280,9 +255,8 @@ function Artisan.UI:ApplyLayout()
             self.ReagentHeader:Hide()
         end
     end
-    if self.CategoryBar then self.CategoryBar:SetShown(bp.category) end
+    if self.CategoryBar then self.CategoryBar:SetShown(categoryShown) end
 
-    -- Поле поиска: на узком окне во всю ширину
     if self.FilterBox then
         self.FilterBox:ClearAllPoints()
         if W < 600 then
@@ -364,8 +338,15 @@ function Artisan.UI:ApplyLayout()
                         -(CTRL.gap + CTRL.iconGap + (k - 1) * (CTRL.iconW + CTRL.iconGap)), 0)
                 end
             end
+        else
+            for k = 1, MAX_REAGENT_ICONS do
+                local ic = row.reagentIcons[k]
+                if ic then ic:Hide() end
+            end
         end
     end
+
+    self:UpdateScroll()
 end
 
 local PROFESSIONS = {
@@ -382,14 +363,13 @@ local PROFESSIONS = {
 }
 
 function Artisan.UI:CreateTopBar(parentFrame)
-    -- Ряд 1: заголовок с именем аддона
     local title = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 8, -4)
+    title:SetPoint("TOP", parentFrame, "TOP", 0, -4)
     title:SetText("Artisan")
+    title:SetJustifyH("CENTER")
     title:SetTextColor(1, 0.82, 0)
     self.WindowTitle = title
 
-    -- Ряд 2 (слева): фильтр по профессиям
     local size = HEADER.profSize
     local gap = HEADER.profGap
     for idx, prof in ipairs(PROFESSIONS) do
@@ -444,7 +424,73 @@ function Artisan.UI:CreateTopBar(parentFrame)
     closeBtn:SetScript("OnLeave", function() text:SetTextColor(0.6, 0.6, 0.6) end)
     closeBtn:SetScript("OnClick", function() parentFrame:Hide() end)
 
-    -- Ряд 2 (справа): категории аукциона
+    local toggleBtn = CreateFrame("Button", nil, parentFrame)
+    toggleBtn:SetSize(22, 22)
+    toggleBtn:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -33, -7)
+
+    local function MakeHollow(b, ox, oy, w, h, t, c)
+        local bars = {}
+        local hw, hh = w / 2, h / 2
+        local ht = t / 2
+        local function Bar(px, py, bw, bh)
+            local s = b:CreateTexture(nil, "OVERLAY")
+            s:SetTexture("Interface\\Buttons\\WHITE8X8")
+            s:SetVertexColor(c.r, c.g, c.b, c.a)
+            s:SetPoint("CENTER", b, "CENTER", px, py)
+            s:SetSize(bw, bh)
+            s:Hide()
+            table.insert(bars, s)
+        end
+        Bar(ox, oy + hh - ht, w, t)
+        Bar(ox, oy - hh + ht, w, t)
+        Bar(ox - hw + ht, oy, t, h)
+        Bar(ox + hw - ht, oy, t, h)
+        return bars
+    end
+
+    local gray = { r = 0.72, g = 0.72, b = 0.72, a = 0.9 }
+    local gold = { r = 1, g = 0.82, b = 0, a = 1 }
+
+    local maxBars = MakeHollow(toggleBtn, 0, 0, 13, 13, 2, gray)
+    local restoreBars = {}
+    local backBars = MakeHollow(toggleBtn, -3, 3, 10, 10, 2, gray)
+    local frontBars = MakeHollow(toggleBtn, 3, -3, 11, 11, 2, gray)
+    for _, s in ipairs(backBars) do table.insert(restoreBars, s) end
+    for _, s in ipairs(frontBars) do table.insert(restoreBars, s) end
+
+    local function MakeGroup(bars)
+        local g = {}
+        for i, s in ipairs(bars) do g[i] = s end
+        function g:Show() for i = 1, #self do self[i]:Show() end end
+        function g:Hide() for i = 1, #self do self[i]:Hide() end end
+        function g:SetColor(c) for i = 1, #self do self[i]:SetVertexColor(c.r, c.g, c.b, c.a) end end
+        return g
+    end
+
+    self.ToggleMax = MakeGroup(maxBars)
+    self.ToggleRestore = MakeGroup(restoreBars)
+
+    toggleBtn:SetScript("OnClick", function() Artisan.UI:ToggleSize() end)
+    toggleBtn:SetScript("OnEnter", function(self)
+        if Artisan.UI.Compact then
+            Artisan.UI.ToggleMax:SetColor(gold)
+        else
+            Artisan.UI.ToggleRestore:SetColor(gold)
+        end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.tip or "", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    toggleBtn:SetScript("OnLeave", function()
+        if Artisan.UI.Compact then
+            Artisan.UI.ToggleMax:SetColor(gray)
+        else
+            Artisan.UI.ToggleRestore:SetColor(gray)
+        end
+        GameTooltip:Hide()
+    end)
+    self.ToggleButton = toggleBtn
+
     local categoryBar = CreateFrame("Frame", nil, parentFrame)
     categoryBar:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 340, HEADER.profY)
     categoryBar:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -40, -4)
@@ -571,7 +617,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         self.ColumnHeaders[col.key] = btn
     end
 
-    -- Заголовок колонки реагентов (выравнивается по правому краю иконок реагентов)
     local reagentHeader = CreateFrame("Button", nil, header)
     reagentHeader:SetSize(120, 18)
     local reagentRight = LAYOUT.btnReagentsWidth + LAYOUT.btnWidth + LAYOUT.btnGap + REAGENT_ICON_GAP + (LAYOUT.frameWidth - 20 - 750)
@@ -685,7 +730,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                         self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
                         self.txt:SetTextColor(1, 1, 1)
                     else
-                        -- Disabled: muted, no hover effect
+
                         self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
                         self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
                         self.txt:SetTextColor(0.5, 0.45, 0.35)
@@ -696,7 +741,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                         self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
                         self.txt:SetTextColor(1, 0.82, 0)
                     else
-                        -- Disabled: muted, no hover effect
+
                         self.bg:SetVertexColor(0.12, 0.12, 0.12, 0.7)
                         self.border:SetVertexColor(0.25, 0.2, 0.15, 0.8)
                         self.txt:SetTextColor(0.5, 0.45, 0.35)
@@ -745,7 +790,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.craftBtn:Hide()
         row.reagentsBtn:Hide()
         row.reagentsBtn:SetScript("OnEnter", function(self)
-            -- Mouseover visual
+
             if self:IsEnabled() then
                 self.bg:SetVertexColor(0.35, 0.35, 0.5, 1)
                 self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
@@ -757,7 +802,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             GameTooltip:Show()
         end)
         row.reagentsBtn:SetScript("OnLeave", function(self)
-            -- Restore visual
+
             if self:IsEnabled() then
                 self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
                 self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
@@ -771,7 +816,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end)
 
         row.craftBtn:SetScript("OnEnter", function(self)
-            -- Mouseover visual
+
             if self.customEnabled then
                 self.bg:SetVertexColor(0.35, 0.35, 0.5, 1)
                 self.border:SetVertexColor(0.9, 0.75, 0.3, 1)
@@ -804,7 +849,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             GameTooltip:Show()
         end)
         row.craftBtn:SetScript("OnLeave", function(self)
-            -- Restore visual
+
             if self.customEnabled then
                 self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.95)
                 self.border:SetVertexColor(0.35, 0.35, 0.35, 0.8)
@@ -868,7 +913,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     local logoutFrame = CreateFrame("Frame")
     logoutFrame:RegisterEvent("PLAYER_LOGOUT")
     logoutFrame:SetScript("OnEvent", function()
-        -- SavedVariables are auto-saved, but ensure table exists
+
         ArtisanDB = ArtisanDB or {}
         ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
     end)
@@ -887,7 +932,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         return Artisan.UI.KnownRecipes[spellID] == true
     end
 
-    -- Добавляет в тултип компактную подсказку, как получить рецепт.
     function Artisan.UI:AddRecipeSourcesTooltip(spellID)
         if not Artisan.RecipeSources then return end
         local data = Artisan.RecipeSources[spellID]
@@ -1017,7 +1061,6 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             GameTooltip:Hide()
         end)
 
-        -- Иконки реагентов (количество в сумке / нужно; серые, если не хватает)
         row.reagentIcons = {}
         local btnBlock = LAYOUT.btnReagentsWidth + LAYOUT.btnWidth + LAYOUT.btnGap
         for k = 1, MAX_REAGENT_ICONS do
@@ -1293,8 +1336,6 @@ function Artisan.UI:BuildCategoryBar()
             y = y + CATEGORY_ROW_HEIGHT
         end
 
-        -- Не рисуем за пределами зарезервированной области категорий,
-        -- чтобы раскладка окна оставалась фиксированной.
         if y + CATEGORY_ROW_HEIGHT > CATEGORY_ROWS_MAX * CATEGORY_ROW_HEIGHT then
             btn:Hide()
         else
@@ -1353,11 +1394,11 @@ function Artisan.UI:RefreshList()
         if row then
             if row.bop and not showBop then
             elseif group and (row.group or "Прочее") ~= group then
-                -- skip: не из выбранной категории
+
             elseif filter ~= "" and not (row.itemName and row.itemName:lower():find(filter, 1, true)) then
-                -- skip: не совпало с поиском
+
             elseif showKnown and row.spellID and not Artisan.UI:IsRecipeKnown(row.spellID) then
-                -- skip: не изучен
+
             else
                 tinsert(list, row)
             end
@@ -1453,7 +1494,6 @@ function Artisan.UI:UpdateScroll()
 
             row.data = data
 
-            -- Craft button
             local craftBtn = row.craftBtn
             local reagentsBtn = row.reagentsBtn
             if data.spellID and craftBtn.layoutAllowed then
@@ -1475,14 +1515,12 @@ function Artisan.UI:UpdateScroll()
                 craftBtn.profID = nil
             end
 
-            -- Reagents button
             if data.reagents and #data.reagents > 0 then
                 reagentsBtn:Show()
             else
                 reagentsBtn:Hide()
             end
 
-            -- Reagent icons (сумка/нужно, серые если не хватает)
             local icons = row.reagentIcons
             if icons and self.ShowReagentIcons then
                 for k = 1, MAX_REAGENT_ICONS do icons[k]:Hide() end
@@ -2003,16 +2041,6 @@ function Artisan.UI:SearchOnAuctionHouse(itemName)
         DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]|r Ошибка запуска поиска: " .. tostring(err))
     end
 end
-
--- ============================================================================
--- Учёт продаж (для тултипов «Продажа» и «Прибыль»).
--- Веб-лежащая история хранится в ArtisanDB.sales[персонаж][itemID].
--- На 3.3.5 завершение продажи надёжно определяется по исчезновению лота из
--- вкладки «Мои лоты» (AUCTION_OWNED_LIST_UPDATE). ВНИМАНИЕ: этим способом
--- нельзя отличить «продано» от «истекло»/«отменено», поэтому статистика
--- приблизительная. Прибыль считается как выручка (buyout*0.95) минус
--- стоимость крафта по текущим ценам реагентов.
--- ============================================================================
 
 function Artisan.UI:GetItemIDByName(name)
     if name == nil or name == "" then return nil end
