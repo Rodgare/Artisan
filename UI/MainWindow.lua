@@ -7,7 +7,9 @@ Artisan.UI.KnownRecipesByProf = Artisan.UI.KnownRecipesByProf or {}
 Artisan.UI.KnownRecipesByChar = Artisan.UI.KnownRecipesByChar or {}
 
 local LAYOUT = {
-    frameWidth = 800, frameHeight = 600,
+    frameWidth = 900, frameHeight = 600,
+    minWidth = 360, maxWidth = 1200,
+    minHeight = 360, maxHeight = 900,
     iconX = 4, iconSize = 18, nameX = 120, nameWidth = 90,
     colCostX = 195, colCostWidth = 100,
     colSellX = 250, colSellWidth = 100,
@@ -16,6 +18,24 @@ local LAYOUT = {
     btnCraftRightX = 750, btnReagentsRightX = 685,
     btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
 }
+
+-- Responsive layout config
+local COL_W = { cost = 72, sell = 70, profit = 84, skill = 84 }
+local COL_GAP = 10
+local CTRL = { rightPad = 8, gap = 4, buyW = 62, craftW = 56, iconW = 23, iconGap = 2 }
+local BREAKPOINTS = {
+    { w = 900, cols = { "name", "cost", "sell", "profit", "skill" }, category = true,  reagents = true,  craft = true },
+    { w = 760, cols = { "name", "cost", "sell", "profit" },          category = false, reagents = true,  craft = true },
+    { w = 600, cols = { "name", "cost", "profit" },                  category = false, reagents = false, craft = false },
+    { w = 0,   cols = { "name", "profit" },                          category = false, reagents = false, craft = false },
+}
+local function GetBreakpoint(W)
+    for _, bp in ipairs(BREAKPOINTS) do
+        if W >= bp.w then return bp end
+    end
+    return BREAKPOINTS[#BREAKPOINTS]
+end
+local COL_ORDER = { "cost", "sell", "profit", "skill" }
 
 local ROW_HEIGHT = 21
 local VISIBLE_ROWS = 21
@@ -102,7 +122,7 @@ function Artisan.UI:CreateMainWindow()
 
     local frame = CreateFrame("Frame", "ArtisanMainFrame", UIParent)
     tinsert(UISpecialFrames, "ArtisanMainFrame")
-    frame:SetSize(800, 600)
+    frame:SetSize(LAYOUT.frameWidth, LAYOUT.frameHeight)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("FULLSCREEN")
 
@@ -133,6 +153,44 @@ function Artisan.UI:CreateMainWindow()
     frame:SetScript("OnShow", function()
         Artisan.UI:InitList()
         Artisan.UI:ScanKnownRecipes()
+        Artisan.UI:ApplyLayout()
+    end)
+
+    -- Отслеживаем ширину и применяем адаптивную раскладку при изменении
+    frame:SetScript("OnUpdate", function(self)
+        local w = self:GetWidth()
+        local h = self:GetHeight()
+        if w < LAYOUT.minWidth then w = LAYOUT.minWidth self:SetWidth(w) end
+        if w > LAYOUT.maxWidth then w = LAYOUT.maxWidth self:SetWidth(w) end
+        if h < LAYOUT.minHeight then h = LAYOUT.minHeight self:SetHeight(h) end
+        if h > LAYOUT.maxHeight then h = LAYOUT.maxHeight self:SetHeight(h) end
+        if w ~= Artisan.UI.LastWidth then
+            Artisan.UI.LastWidth = w
+            Artisan.UI:ApplyLayout()
+        end
+    end)
+
+    -- Уголок для ресайза (правый нижний угол): короткая полоска у угла, длиннее по диагонали вверх-влево
+    frame:SetResizable(true)
+    local resizer = CreateFrame("Frame", nil, frame)
+    resizer:SetSize(22, 22)
+    resizer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+    resizer:EnableMouse(true)
+    resizer:RegisterForDrag("LeftButton")
+    for i = 0, 2 do
+        local line = resizer:CreateTexture(nil, "ARTWORK")
+        line:SetTexture("Interface/Buttons/WHITE8X8")
+        line:SetVertexColor(1, 1, 1, 0.6)
+        line:SetSize(4 + i * 5, 1)
+        line:SetPoint("CENTER", resizer, "CENTER", 6 - i * 4, -6 + i * 4)
+        line:SetRotation(0.78539816339)
+    end
+
+    resizer:SetScript("OnDragStart", function(self)
+        self:GetParent():StartSizing("BOTTOMRIGHT")
+    end)
+    resizer:SetScript("OnDragStop", function(self)
+        self:GetParent():StopMovingOrSizing()
     end)
 
     frame:Hide()
@@ -141,6 +199,173 @@ function Artisan.UI:CreateMainWindow()
 
     self:CreateTopBar(frame)
     self:CreateRecipeList(frame)
+    self:ApplyLayout()
+end
+
+-- Адаптивная раскладка: позиционирует столбцы, кнопки и панели по ширине контента.
+function Artisan.UI:ApplyLayout()
+    local scroll = self.ScrollFrame
+    if not scroll then return end
+    local W = self.MainFrame and self.MainFrame:GetWidth() or LAYOUT.frameWidth
+    local rw = (scroll:GetWidth() or 0) - 18
+    if rw <= 0 then rw = W - 20 end
+
+    local bp = GetBreakpoint(W)
+    local showCol = {}
+    for _, k in ipairs(bp.cols) do showCol[k] = true end
+
+    local PAD = 4
+    local nameStartX = PAD + 18 + 6
+
+    -- Правый блок управления: Купить + (Крафт) + (иконки реагентов)
+    local craftShown = bp.craft
+    local reagentShown = bp.reagents
+    local blockW = CTRL.buyW + CTRL.gap
+    if craftShown then blockW = blockW + CTRL.craftW + CTRL.gap end
+    if reagentShown then blockW = blockW + CTRL.gap + MAX_REAGENT_ICONS * CTRL.iconW + (MAX_REAGENT_ICONS - 1) * CTRL.iconGap end
+    local controlsLeft = (rw - CTRL.rightPad) - blockW
+
+    -- Колонки слева, от name к числовым, с распределением свободного места
+    local nums = {}
+    for _, k in ipairs(COL_ORDER) do
+        if showCol[k] then nums[#nums + 1] = k end
+    end
+    local n = #nums
+    local numTotal = 0
+    for _, k in ipairs(nums) do numTotal = numTotal + COL_W[k] end
+    if n > 1 then numTotal = numTotal + (n - 1) * COL_GAP end
+
+    local available = (controlsLeft - 8) - nameStartX
+    local nameMin, nameCap = 80, 260
+    local trailing = (n > 0) and COL_GAP or 0
+    local free = available - (nameMin + numTotal + trailing)
+    local nameW, gap = nameMin, COL_GAP
+    if free > 0 then
+        if free <= (nameCap - nameMin) then
+            nameW = nameMin + free
+        else
+            nameW = nameCap
+            gap = COL_GAP + (free - (nameCap - nameMin)) / math.max(1, n)
+        end
+    end
+
+    local colX, colW = { name = nameStartX }, { name = nameW }
+    local cx = nameStartX + nameW + gap
+    for _, k in ipairs(nums) do
+        colX[k] = cx
+        colW[k] = COL_W[k]
+        cx = cx + COL_W[k] + gap
+    end
+
+    -- Заголовки колонок
+    for k, btn in pairs(self.ColumnHeaders or {}) do
+        if showCol[k] and colX[k] then
+            btn:Show()
+            btn:ClearAllPoints()
+            btn:SetPoint("LEFT", self.HeaderFrame or btn:GetParent(), "LEFT", colX[k], 0)
+            btn:SetSize(colW[k], 18)
+        else
+            btn:Hide()
+        end
+    end
+    if self.ReagentHeader then
+        self.ReagentHeader:ClearAllPoints()
+        if reagentShown then
+            self.ReagentHeader:Show()
+            local zr = rw - CTRL.rightPad - CTRL.buyW - CTRL.gap
+            if craftShown then zr = zr - CTRL.craftW - CTRL.gap end
+            zr = zr - CTRL.gap - CTRL.iconGap
+            self.ReagentHeader:SetPoint("RIGHT", self.HeaderFrame or self.ReagentHeader:GetParent(), "LEFT", zr, 0)
+        else
+            self.ReagentHeader:Hide()
+        end
+    end
+    if self.CategoryBar then self.CategoryBar:SetShown(bp.category) end
+
+    -- Поле поиска: на узком окне во всю ширину
+    if self.FilterBox then
+        self.FilterBox:ClearAllPoints()
+        if W < 600 then
+            self.FilterBox:SetPoint("TOPLEFT", self.MainFrame, "TOPLEFT", 10, HEADER.searchY)
+            self.FilterBox:SetPoint("TOPRIGHT", self.MainFrame, "TOPRIGHT", -10, 0)
+        else
+            self.FilterBox:SetPoint("TOPLEFT", self.MainFrame, "TOPLEFT", 10, HEADER.searchY)
+            self.FilterBox:SetSize(HEADER.searchWidth, 18)
+        end
+    end
+
+    self.ShowReagentIcons = reagentShown
+
+    for _, row in ipairs(self.RowFrames or {}) do
+        row.name:ClearAllPoints()
+        row.name:SetPoint("LEFT", row, "LEFT", colX.name, 0)
+        row.name:SetWidth(nameW)
+        if row.nameBtn then
+            row.nameBtn:ClearAllPoints()
+            row.nameBtn:SetPoint("LEFT", row, "LEFT", colX.name - 2, 0)
+            row.nameBtn:SetSize(nameW + 4, ROW_HEIGHT)
+        end
+
+        local function PlaceField(key, fs, btn)
+            if showCol[key] then
+                fs:Show()
+                fs:ClearAllPoints()
+                fs:SetPoint("LEFT", row, "LEFT", colX[key], 0)
+                fs:SetWidth(colW[key])
+                if btn then
+                    btn:Show()
+                    btn:ClearAllPoints()
+                    btn:SetPoint("LEFT", row, "LEFT", colX[key] - 2, 0)
+                    btn:SetSize(colW[key] + 4, ROW_HEIGHT)
+                end
+            else
+                fs:Hide()
+                if btn then btn:Hide() end
+            end
+        end
+        PlaceField("cost", row.cost, row.costBtn)
+        PlaceField("sell", row.sell, row.sellBtn)
+        PlaceField("profit", row.profit, row.profitBtn)
+
+        if showCol.skill then
+            local sx = colX.skill + colW.skill
+            row.skillGr:Show()
+            row.skillGr:ClearAllPoints()
+            row.skillGr:SetPoint("RIGHT", row, "LEFT", sx, 0)
+            row.skillY:Show()
+            row.skillG:Show()
+            row.skillR:Show()
+        else
+            row.skillGr:Hide()
+            row.skillY:Hide()
+            row.skillG:Hide()
+            row.skillR:Hide()
+        end
+
+        row.reagentsBtn.layoutAllowed = true
+        row.reagentsBtn:ClearAllPoints()
+        row.reagentsBtn:SetPoint("RIGHT", row, "RIGHT", -CTRL.rightPad, 0)
+
+        if craftShown then
+            row.craftBtn.layoutAllowed = true
+            row.craftBtn:ClearAllPoints()
+            row.craftBtn:SetPoint("RIGHT", row.reagentsBtn, "LEFT", -CTRL.gap, 0)
+        else
+            row.craftBtn.layoutAllowed = false
+        end
+
+        if reagentShown then
+            local ref = craftShown and row.craftBtn or row.reagentsBtn
+            for k = 1, MAX_REAGENT_ICONS do
+                local ic = row.reagentIcons[k]
+                if ic then
+                    ic:ClearAllPoints()
+                    ic:SetPoint("RIGHT", ref, "LEFT",
+                        -(CTRL.gap + CTRL.iconGap + (k - 1) * (CTRL.iconW + CTRL.iconGap)), 0)
+                end
+            end
+        end
+    end
 end
 
 local PROFESSIONS = {
@@ -233,6 +458,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     filterBox:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, HEADER.searchY)
     filterBox:SetAutoFocus(false)
     filterBox:SetTextInsets(10, 18, 0, 0)
+    self.FilterBox = filterBox
 
     local placeholder = filterBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     placeholder:SetPoint("LEFT", filterBox, "LEFT", 7, 0)
@@ -308,6 +534,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, HEADER.headerY)
     header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, 0)
     header:SetHeight(18)
+    self.HeaderFrame = header
 
     local scrollFrame = CreateFrame("ScrollFrame", "ArtisanRecipeScrollFrame", parentFrame)
     scrollFrame:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
@@ -359,8 +586,9 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     self.RowFrames = {}
     for i = 1, VISIBLE_ROWS do
         local row = CreateFrame("Button", nil, parentFrame)
-        row:SetSize(750, ROW_HEIGHT)
+        row:SetHeight(ROW_HEIGHT)
         row:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, -(i - 1) * ROW_HEIGHT)
+        row:SetPoint("RIGHT", scrollFrame, "RIGHT", -18, 0)
 
         local bg = row:CreateTexture(nil, "BACKGROUND")
         bg:SetAllPoints(row)
@@ -686,6 +914,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     for i = 1, VISIBLE_ROWS do
         local row = self.RowFrames[i]
         local nameButton = CreateFrame("Button", nil, row)
+        row.nameBtn = nameButton
         nameButton:SetSize(200, ROW_HEIGHT)
         nameButton:SetPoint("LEFT", row, "LEFT", 28, 0)
         nameButton:SetScript("OnEnter", function(self)
@@ -706,6 +935,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end)
 
         local costButton = CreateFrame("Button", nil, row)
+        row.costBtn = costButton
         costButton:SetSize(120, ROW_HEIGHT)
         costButton:SetPoint("LEFT", row, "LEFT", LAYOUT.colCostX, 0)
         costButton:SetScript("OnEnter", function(self)
@@ -734,6 +964,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end)
 
         local sellButton = CreateFrame("Button", nil, row)
+        row.sellBtn = sellButton
         sellButton:SetSize(100, ROW_HEIGHT)
         sellButton:SetPoint("LEFT", row, "LEFT", LAYOUT.colSellX, 0)
         sellButton:SetScript("OnEnter", function(self)
@@ -764,6 +995,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         end)
 
         local profitButton = CreateFrame("Button", nil, row)
+        row.profitBtn = profitButton
         profitButton:SetSize(110, ROW_HEIGHT)
         profitButton:SetPoint("LEFT", row, "LEFT", LAYOUT.colProfitX, 0)
         profitButton:SetScript("OnEnter", function(self)
@@ -1224,7 +1456,7 @@ function Artisan.UI:UpdateScroll()
             -- Craft button
             local craftBtn = row.craftBtn
             local reagentsBtn = row.reagentsBtn
-            if data.spellID then
+            if data.spellID and craftBtn.layoutAllowed then
                 local known = Artisan.UI:IsRecipeKnown(data.spellID)
                 craftBtn:Show()
                 if known then
@@ -1252,7 +1484,7 @@ function Artisan.UI:UpdateScroll()
 
             -- Reagent icons (сумка/нужно, серые если не хватает)
             local icons = row.reagentIcons
-            if icons then
+            if icons and self.ShowReagentIcons then
                 for k = 1, MAX_REAGENT_ICONS do icons[k]:Hide() end
                 if data.reagents and #data.reagents > 0 then
                     for k = 1, math.min(#data.reagents, MAX_REAGENT_ICONS) do
@@ -1262,8 +1494,13 @@ function Artisan.UI:UpdateScroll()
                         local need = rg.count or 0
                         local ok = have >= need
                         icon.tex:SetTexture(rg.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                        icon.tex:SetDesaturated(not ok)
-                        icon.tex:SetVertexColor(ok and 1 or 0.55, ok and 1 or 0.55, ok and 1 or 0.55, 1)
+                        if ok then
+                            icon.tex:SetDesaturated(false)
+                            icon.tex:SetVertexColor(1, 1, 1, 1)
+                        else
+                            icon.tex:SetDesaturated(false)
+                            icon.tex:SetVertexColor(0.62, 0.62, 0.62, 0.85)
+                        end
                         icon.data = rg
                         icon.countText:SetText(have .. "/" .. need)
                         if ok then
