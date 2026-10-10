@@ -588,7 +588,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     showBop:SetChecked(false)
     local showBopLabel = _G["ArtisanShowBopCheckText"]
     if showBopLabel then
-        showBopLabel:SetText("Личные (BoP)")
+        showBopLabel:SetText("Отображать личные (BoP)")
         showBopLabel:SetTextColor(0.7, 0.7, 0.7)
     end
     showBop:SetScript("OnClick", function(self)
@@ -1123,20 +1123,13 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                 GameTooltip:AddLine("Нет сохранённых продаж", 0.7, 0.7, 0.7)
                 GameTooltip:AddLine("Прибыль за крафт: " .. Artisan.Utils:FormatMoney(row.data.profit), 1, 0.82, 0)
             end
-            if row.data and row.data.profID == "Alchemy" and Artisan.Pricing and Artisan.Pricing:GetAlchemySpec() then
+            if row.data and row.data.profID == "Alchemy" and row.data.yield and row.data.yield > 1 and Artisan.Pricing and Artisan.Pricing:GetAlchemySpec() then
                 local label = Artisan.Pricing:GetAlchemySpecLabel()
-                local mult = row.data.yield or 1
-                local line = label
-                if mult > 1 then
-                    line = line .. " (выход ×" .. string.format("%.2f", mult) .. ")"
-                end
-                GameTooltip:AddLine(line, 0.6, 0.9, 0.6)
-                if mult > 1 then
-                    local baseSell = row.data.sell / mult
-                    local baseProfit = (baseSell * 0.95) - row.data.cost
-                    local bonus = row.data.profit - baseProfit
-                    GameTooltip:AddLine("Бонус спец: +" .. Artisan.Utils:FormatMoney(bonus) .. " к прибыли", 0.6, 0.9, 0.6)
-                end
+                local mult = row.data.yield
+                local baseSell = row.data.sell / mult
+                local baseProfit = (baseSell * 0.95) - row.data.cost
+                local bonus = row.data.profit - baseProfit
+                GameTooltip:AddLine("Базовая прибыль " .. Artisan.Utils:FormatMoney(baseProfit) .. " + " .. label .. " " .. Artisan.Utils:FormatMoney(bonus), 0.6, 0.9, 0.6)
             end
             GameTooltip:Show()
         end)
