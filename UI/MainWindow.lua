@@ -687,6 +687,23 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     scrollFrame:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
     scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 30)
 
+    local footer = CreateFrame("Frame", nil, parentFrame)
+    footer:SetPoint("BOTTOMLEFT", parentFrame, "BOTTOMLEFT", 10, 3)
+    footer:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 3)
+    footer:SetHeight(14)
+
+    local verTxt = footer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    verTxt:SetPoint("BOTTOMLEFT", footer, "BOTTOMLEFT", 0, 0)
+    verTxt:SetJustifyH("LEFT")
+    verTxt:SetText("Artisan " .. (GetAddOnMetadata("Artisan", "Version") or "?"))
+    verTxt:SetTextColor(0.6, 0.6, 0.6)
+
+    local contactTxt = footer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    contactTxt:SetPoint("BOTTOMRIGHT", footer, "BOTTOMRIGHT", 0, 0)
+    contactTxt:SetJustifyH("RIGHT")
+    contactTxt:SetText("Отправляйте баги, предложения, благодарности на Coda x3")
+    contactTxt:SetTextColor(0.6, 0.6, 0.6)
+
     self.ColumnHeaders = {}
     for _, col in ipairs(COLUMNS) do
         local btn = CreateFrame("Button", nil, header)
