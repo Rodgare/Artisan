@@ -3872,5 +3872,22 @@ Artisan.RecipeSources = {
         [319451] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
         [319452] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
         [319453] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
-
+        [31461] = { skill = 325, medium = 325, easy = 330, trivial = 335, hint = "" },
+        [150256] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Торговец ЦЛК, репутация Пепельный Союз" },
+        [150247] = { skill = 75, medium = 85, easy = 90, trivial = 95, hint = "" },
+        [150248] = { skill = 125, medium = 125, easy = 135, trivial = 145, hint = "" },
+        [319038] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
+        [319040] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
+        [319042] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
+        [319041] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
+        [319039] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
+        [319051] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
+        [319037] = { skill = 450, medium = 450, easy = 450, trivial = 450, hint = "Продавец" },
+        [150246] = { skill = 1, medium = 30, easy = 45, trivial = 60, hint = "Учитель" },
+        [150253] = { skill = 310, medium = 310, easy = 320, trivial = 330, hint = "Учитель" },
+        [150252] = { skill = 285, medium = 295, easy = 300, trivial = 305, hint = "Учитель" },
+        [150249] = { skill = 210, medium = 210, easy = 230, trivial = 250, hint = "Учитель" },
+        [150251] = { skill = 245, medium = 245, easy = 265, trivial = 285, hint = "Учитель" },
+        [150255] = { skill = 415, medium = 410, easy = 418, trivial = 425, hint = "Учитель" },
+        
 }
