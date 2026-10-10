@@ -11,11 +11,12 @@ local profSkillCache = {}
 local LAYOUT = {
     frameWidth = 900, frameHeight = 600,
     compactWidth = 450,
-    iconX = 4, iconSize = 18, nameX = 23, nameWidth = 200,
-    colCostX = 195, colCostWidth = 100,
-    colSellX = 250, colSellWidth = 100,
-    colProfitX = 305, colProfitWidth = 100,
-    colSkillX = 420, colSkillWidth = 90,
+    iconX = 4, iconSize = 18, nameX = 23, nameWidth = 220,
+    colIlvlX = 245, colIlvlWidth = 30,
+    colCostX = 270, colCostWidth = 60,
+    colSellX = 330, colSellWidth = 60,
+    colProfitX = 390, colProfitWidth = 60,
+    colSkillX = 480, colSkillWidth = 60,
     btnCraftRightX = 750, btnReagentsRightX = 685,
     btnWidth = 60, btnReagentsWidth = 65, btnGap = 2,
 }
@@ -28,6 +29,7 @@ local COL_ORDER = { "cost", "sell", "profit", "skill" }
 local ROW_HEIGHT = 21
 local VISIBLE_ROWS = 21
 local WHEEL_STEP = 5
+local SKILL_FONT_SIZE = 8
 
 local CATEGORY_ROWS_MAX = 6
 local CATEGORY_ROW_HEIGHT = 15
@@ -49,11 +51,20 @@ local CATEGORY_ORDER = {"Настойки", "Зелья", "Эликсиры", "�
 
 local COLUMNS ={
     { key = "name",   text = "Рецепт",   x = LAYOUT.nameX, width = LAYOUT.nameWidth, align = "LEFT",  sortKey = "itemName" },
+    { key = "ilvl",   text = "Илвл",     x = LAYOUT.colIlvlX, width = LAYOUT.colIlvlWidth, align = "LEFT",  sortKey = "ilvl" },
     { key = "cost",   text = "Затраты",  x = LAYOUT.colCostX, width = LAYOUT.colCostWidth, align = "RIGHT", sortKey = "cost" },
     { key = "sell",   text = "Продажа",  x = LAYOUT.colSellX, width = LAYOUT.colSellWidth, align = "RIGHT", sortKey = "sell" },
     { key = "profit", text = "Прибыль",  x = LAYOUT.colProfitX, width = LAYOUT.colProfitWidth, align = "RIGHT", sortKey = "profit" },
     { key = "skill",  text = "Навык",    x = LAYOUT.colSkillX, width = LAYOUT.colSkillWidth, align = "RIGHT", sortKey = "skill" },
 }
+
+local function QualityColor(rarity)
+    if GetItemQualityColor then
+        local r, g, b = GetItemQualityColor(rarity or 1)
+        if r and g and b then return r, g, b end
+    end
+    return 1, 1, 1
+end
 
 local REAGENT_ICON_SIZE = 23
 local REAGENT_ICON_GAP = 2
@@ -152,6 +163,7 @@ function Artisan.UI:CreateMainWindow()
 
     self:CreateTopBar(frame)
     self:CreateRecipeList(frame)
+    self:RegisterPriceRefresh()
     self:UpdateToggleButton()
     self:ApplyLayout()
 end
@@ -160,8 +172,18 @@ function Artisan.UI:ToggleSize()
     self.Compact = not self.Compact
     if ArtisanDB then ArtisanDB.compactUI = self.Compact end
     if self.MainFrame then
+        local scroll = self.ScrollFrame
+        local prevOffset = scroll and FauxScrollFrame_GetOffset and FauxScrollFrame_GetOffset(scroll) or 0
+
         self.MainFrame:SetSize(self.Compact and LAYOUT.compactWidth or LAYOUT.frameWidth, LAYOUT.frameHeight)
         self:ApplyLayout()
+
+        if scroll and prevOffset and prevOffset > 0 then
+            FauxScrollFrame_SetOffset(scroll, prevOffset)
+            self:UpdateScroll()
+        end
+
+        self:BuildCategoryBar()
     end
     self:UpdateToggleButton()
 end
@@ -193,7 +215,7 @@ function Artisan.UI:ApplyLayout()
     local W = targetW
     local rw = targetW - 38
 
-    local showCol = { name = true, profit = true }
+    local showCol = { name = true, profit = true, ilvl = true }
     if not compact then
         showCol.cost = true
         showCol.sell = true
@@ -205,13 +227,14 @@ function Artisan.UI:ApplyLayout()
 
     local colX, colW, nameW
     if compact then
-        local nw = 160
-        colX = { name = 28, profit = 28 + nw + 10 }
-        colW = { name = nw, profit = 70 }
-        nameW = nw
+        local nw = 150
+        colX = { name = 28, ilvl = 28 + nw + 8, profit = 28 + nw + 8 + 44 + 10 }
+        colW = { name = nw, ilvl = 44, profit = 90 }
+        nameW = colW.name
     else
         colX = {
             name = LAYOUT.nameX,
+            ilvl = LAYOUT.colIlvlX,
             cost = LAYOUT.colCostX,
             sell = LAYOUT.colSellX,
             profit = LAYOUT.colProfitX,
@@ -219,12 +242,13 @@ function Artisan.UI:ApplyLayout()
         }
         colW = {
             name = LAYOUT.nameWidth,
+            ilvl = LAYOUT.colIlvlWidth,
             cost = LAYOUT.colCostWidth,
             sell = LAYOUT.colSellWidth,
             profit = LAYOUT.colProfitWidth,
             skill = LAYOUT.colSkillWidth,
         }
-        nameW = LAYOUT.nameWidth
+        nameW = colW.name
     end
 
     for k, btn in pairs(self.ColumnHeaders or {}) do
@@ -294,6 +318,15 @@ function Artisan.UI:ApplyLayout()
         PlaceField("cost", row.cost, row.costBtn)
         PlaceField("sell", row.sell, row.sellBtn)
         PlaceField("profit", row.profit, row.profitBtn)
+
+        if showCol.ilvl then
+            row.ilvl:Show()
+            row.ilvl:ClearAllPoints()
+            row.ilvl:SetPoint("LEFT", row, "LEFT", colX.ilvl, 0)
+            row.ilvl:SetWidth(colW.ilvl)
+        else
+            row.ilvl:Hide()
+        end
 
         if showCol.skill then
             local sx = colX.skill + colW.skill
@@ -658,6 +691,10 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.name:SetWidth(220)
         row.name:SetJustifyH("LEFT")
 
+        row.ilvl = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.ilvl:SetWidth(44)
+        row.ilvl:SetJustifyH("LEFT")
+
         row.cost = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         row.cost:SetPoint("LEFT", row, "LEFT", LAYOUT.colCostX, 0)
         row.cost:SetWidth(LAYOUT.colCostWidth)
@@ -688,6 +725,12 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         row.skillR = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         row.skillR:SetPoint("RIGHT", row.skillY, "LEFT", 0, 0)
         row.skillR:SetTextColor(1, 0.3, 0.3)
+
+        local skillFont = row.skillGr:GetFont()
+        row.skillGr:SetFont(skillFont, SKILL_FONT_SIZE)
+        row.skillG:SetFont(skillFont, SKILL_FONT_SIZE)
+        row.skillY:SetFont(skillFont, SKILL_FONT_SIZE)
+        row.skillR:SetFont(skillFont, SKILL_FONT_SIZE)
 
         local function CreateStyledButton(parent, text, width, onClick)
             local btn = CreateFrame("Button", nil, parent)
@@ -1512,6 +1555,10 @@ function Artisan.UI:UpdateScroll()
 
             row.icon:SetTexture(data.itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
             row.name:SetText((data.itemName or ("ID: " .. data.itemID)) .. " [" .. (data.itemID or "?") .. "]")
+            local kr, kg, kb = QualityColor(data.quality)
+            row.name:SetTextColor(kr, kg, kb, 1)
+            row.ilvl:SetText(data.ilvl and data.ilvl > 0 and tostring(data.ilvl) or "")
+            row.ilvl:SetTextColor(kr, kg, kb, 1)
             row.cost:SetText(Artisan.Utils:FormatMoney(data.cost))
             row.sell:SetText(Artisan.Utils:FormatMoney(data.sell))
             row.profit:SetText(Artisan.Utils:FormatMoney(data.profit))
@@ -2014,6 +2061,11 @@ function Artisan.UI:SearchReagentsOnAH(reagents)
 
         if #searchTerms > 0 then
             Auctionator.API.v1.MultiSearch("Artisan", searchTerms)
+            for _, r in ipairs(reagents) do
+                if r.itemID then
+                    Artisan.UI:QueuePriceRefresh(r.itemID)
+                end
+            end
             DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r Поиск " .. #searchTerms .. " реагентов через Auctionator")
             return
         end
@@ -2075,6 +2127,8 @@ function Artisan.UI:SearchOnAuctionHouse(itemName)
     end)
     if not ok then
         DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]|r Ошибка запуска поиска: " .. tostring(err))
+    else
+        Artisan.UI:QueuePriceRefresh(Artisan.UI:GetItemIDByName(itemName))
     end
 end
 
@@ -2202,4 +2256,78 @@ function Artisan.UI:RegisterSalesTracking()
         end
     end)
     self.salesFrame = f
+end
+
+function Artisan.UI:QueuePriceRefresh(itemIDorList)
+    self.PendingPriceItemIDs = self.PendingPriceItemIDs or {}
+    local ids = type(itemIDorList) == "table" and itemIDorList or { itemIDorList }
+    for _, id in ipairs(ids) do
+        id = tonumber(id)
+        if id and id > 0 then
+            self.PendingPriceItemIDs[id] = true
+        end
+    end
+end
+
+-- Пересчитывает цены только для тех товаров, которые пользователь искал
+function Artisan.UI:RefreshPricesForPending()
+    local ids = {}
+    local pending = self.PendingPriceItemIDs or {}
+    for id in pairs(pending) do tinsert(ids, id) end
+    self.PendingPriceItemIDs = {}
+
+    if not Artisan.Pricing or not Artisan.Pricing.RefreshItemPrice then return end
+
+    -- Также пробуем определить искомый товар по тексту в поиске аукциона (если поиск шёл вручную)
+    local box = _G["AuctionHouseFrameSearchBarSearchBox"]
+        or _G["AuctionHouseFrameSearchBox"]
+        or _G["AuctionFrameBrowseSearchBox"]
+    local text = nil
+    if box and box.GetText then
+        text = box:GetText()
+    end
+    if text and text ~= "" then
+        local id = self:GetItemIDByName(text)
+        if id then ids[#ids + 1] = id end
+    end
+
+    if #ids == 0 then return end
+
+    if Artisan.Auctionator and Artisan.Auctionator.ClearPriceCache then
+        Artisan.Auctionator:ClearPriceCache()
+    end
+
+    for _, id in ipairs(ids) do
+        Artisan.Pricing:RefreshItemPrice(id)
+    end
+
+    local scroll = self.ScrollFrame
+    local off = scroll and FauxScrollFrame_GetOffset and FauxScrollFrame_GetOffset(scroll) or 0
+    self:RefreshList()
+    if scroll and off then
+        FauxScrollFrame_SetOffset(scroll, off)
+        self:UpdateScroll()
+    end
+end
+
+function Artisan.UI:RegisterPriceRefresh()
+    if self.priceRefreshFrame then return end
+    local f = CreateFrame("Frame")
+    local elapsed = 0
+    local pending = false
+    f:SetScript("OnEvent", function()
+        pending = true
+        elapsed = 0
+    end)
+    f:SetScript("OnUpdate", function(_, e)
+        if not pending then return end
+        elapsed = elapsed + e
+        if elapsed >= 1 then
+            pending = false
+            elapsed = 0
+            Artisan.UI:RefreshPricesForPending()
+        end
+    end)
+    f:RegisterEvent("AUCTION_ITEM_LIST_UPDATE")
+    self.priceRefreshFrame = f
 end

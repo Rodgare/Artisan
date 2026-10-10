@@ -7,6 +7,8 @@ local nameCache = {}
 local textureCache = {}
 local itemTypeCache = {}
 local subTypeCache = {}
+local ilvlCache = {}
+local qualityCache = {}
 
 local maxSkill = nil
 local function GetMaxSkill()
@@ -24,13 +26,16 @@ end
 
 local function GetItemInfoCached(itemID)
     if nameCache[itemID] == nil then
-        local name, _, _, _, _, itemType, subType, _, _, texture = GetItemInfo(itemID)
+        local name, _, rarity, itemLevel = GetItemInfo(itemID)
+        local _, _, _, _, _, itemType, subType, _, _, texture = GetItemInfo(itemID)
         nameCache[itemID] = name
         textureCache[itemID] = texture
         itemTypeCache[itemID] = itemType
         subTypeCache[itemID] = subType
+        ilvlCache[itemID] = itemLevel
+        qualityCache[itemID] = rarity
     end
-    return nameCache[itemID], textureCache[itemID], itemTypeCache[itemID], subTypeCache[itemID]
+    return nameCache[itemID], textureCache[itemID], itemTypeCache[itemID], subTypeCache[itemID], ilvlCache[itemID], qualityCache[itemID]
 end
 
 function Artisan.Pricing:BuildProfessionList(profID)
@@ -50,7 +55,7 @@ function Artisan.Pricing:BuildProfessionList(profID)
         local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
         local profit = (sellPrice * 0.95) - totalCost -- 0.95 % аукциона
 
-        local itemName, itemTexture, itemType, itemSubType = GetItemInfoCached(data.itemID)
+        local itemName, itemTexture, itemType, itemSubType, itemILvl, itemQuality = GetItemInfoCached(data.itemID)
 
         local src = Artisan.RecipeSources and Artisan.RecipeSources[spellID]
         local skillText = ""
@@ -89,6 +94,8 @@ function Artisan.Pricing:BuildProfessionList(profID)
             cost = totalCost,
             sell = sellPrice,
             profit = profit,
+            ilvl = itemILvl,
+            quality = itemQuality,
             skill = src and src.skill,
             skillText = skillText,
             reagents = reagents,
@@ -113,4 +120,36 @@ end
 
 function Artisan.Pricing:ClearAll()
     wipe(lists)
+end
+
+function Artisan.Pricing:RefreshItemPrice(itemID)
+    itemID = tonumber(itemID)
+    if not itemID then return end
+
+    for profID, plist in pairs(lists) do
+        local rawProf = Artisan.RecipeDB and Artisan.RecipeDB[profID]
+        if rawProf then
+            for _, row in ipairs(plist) do
+                if row.itemID == itemID then
+                    local data = rawProf[row.spellID]
+                    if data then
+                        local totalCost = 0
+                        if data.reagents then
+                            for reagentID, count in pairs(data.reagents) do
+                                local price = Artisan.Auctionator:GetItemPrice(reagentID) or 0
+                                totalCost = totalCost + (price * count)
+                            end
+                        end
+
+                        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
+                        local profit = (sellPrice * 0.95) - totalCost
+
+                        row.cost = totalCost
+                        row.sell = sellPrice
+                        row.profit = profit
+                    end
+                end
+            end
+        end
+    end
 end
