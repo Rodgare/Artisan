@@ -129,6 +129,9 @@ function Artisan.UI:CreateMainWindow()
 
     self.Compact = ArtisanDB and ArtisanDB.compactUI == true or false
 
+    self.ShowKnown = true
+    self.ShowSkillAvail = true
+
     local frame = CreateFrame("Frame", "ArtisanMainFrame", UIParent)
     tinsert(UISpecialFrames, "ArtisanMainFrame")
     frame:SetSize(self.Compact and LAYOUT.compactWidth or LAYOUT.frameWidth, LAYOUT.frameHeight)
@@ -616,7 +619,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     local showKnown = CreateFrame("CheckButton", "ArtisanShowKnownCheck", parentFrame, "UICheckButtonTemplate")
     showKnown:SetSize(20, 20)
     showKnown:SetPoint("LEFT", showBop, "RIGHT", 125, 0)
-    showKnown:SetChecked(false)
+    showKnown:SetChecked(self.ShowKnown == true)
     local showKnownLabel = _G["ArtisanShowKnownCheckText"]
     if showKnownLabel then
         showKnownLabel:SetText("Только изученные")
@@ -629,7 +632,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     local showSkill = CreateFrame("CheckButton", "ArtisanShowSkillCheck", parentFrame, "UICheckButtonTemplate")
     showSkill:SetSize(20, 20)
     showSkill:SetPoint("LEFT", showKnown, "RIGHT", 140, 0)
-    showSkill:SetChecked(false)
+    showSkill:SetChecked(self.ShowSkillAvail == true)
     local showSkillLabel = _G["ArtisanShowSkillCheckText"]
     if showSkillLabel then
         showSkillLabel:SetText("Доступные по навыку")
@@ -1300,6 +1303,18 @@ function Artisan.UI:InitList()
     if not self.SortKey then
         self.SortKey = "profit"
         self.SortDir = -1
+    end
+
+    if not self.SelectedProfessions or not next(self.SelectedProfessions) then
+        local profs = {}
+        for _, prof in ipairs(PROFESSIONS) do
+            local lvl = self:GetProfSkill(prof.id)
+            if lvl and lvl > 0 then profs[prof.id] = true end
+        end
+        if next(profs) then
+            self.SelectedProfessions = profs
+            self:RefreshProfessionSelection()
+        end
     end
 
     self:RebuildFullList()
