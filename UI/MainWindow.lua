@@ -45,6 +45,14 @@ local HEADER = {
     searchWidth = 306,
 }
 
+local FILTER_POS = {
+    bop      = 10,
+    known    = 160,
+    skill    = 250,
+    gain     = 400,
+    reagents = 510,
+}
+
 local CATEGORY_ORDER = {"Настойки", "Зелья", "Эликсиры", "Самоцветы", "Доспехи", "Оружие", "Улучшения",
 
 }
@@ -214,6 +222,16 @@ function Artisan.UI:ApplyLayout()
     if not scroll then return end
 
     local compact = self.Compact == true
+
+    if self.HeaderFrame then
+        local hy = HEADER.headerY
+        if compact then hy = hy - 20 end
+        self.HeaderFrame:ClearAllPoints()
+        self.HeaderFrame:SetPoint("TOPLEFT", self.MainFrame, "TOPLEFT", 10, hy)
+        self.HeaderFrame:SetPoint("TOPRIGHT", self.MainFrame, "TOPRIGHT", -10, 0)
+    end
+
+    if self.LayoutFilterChecks then self:LayoutFilterChecks() end
 
     local targetW = compact and LAYOUT.compactWidth or LAYOUT.frameWidth
     local W = targetW
@@ -621,9 +639,22 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         Artisan.UI:SetShowSkillAvail(self:GetChecked())
     end)
 
+    local showSkillGain = CreateFrame("CheckButton", "ArtisanShowSkillGainCheck", parentFrame, "UICheckButtonTemplate")
+    showSkillGain:SetSize(20, 20)
+    showSkillGain:SetPoint("LEFT", showSkill, "RIGHT", 120, 0)
+    showSkillGain:SetChecked(false)
+    local showSkillGainLabel = _G["ArtisanShowSkillGainCheckText"]
+    if showSkillGainLabel then
+        showSkillGainLabel:SetText("Дающие навык")
+        showSkillGainLabel:SetTextColor(0.7, 0.7, 0.7)
+    end
+    showSkillGain:SetScript("OnClick", function(self)
+        Artisan.UI:SetShowSkillGain(self:GetChecked())
+    end)
+
     local showReagents = CreateFrame("CheckButton", "ArtisanShowReagentsCheck", parentFrame, "UICheckButtonTemplate")
     showReagents:SetSize(20, 20)
-    showReagents:SetPoint("LEFT", showSkill, "RIGHT", 150, 0)
+    showReagents:SetPoint("LEFT", showSkillGain, "RIGHT", 130, 0)
     showReagents:SetChecked(false)
     local showReagentsLabel = _G["ArtisanShowReagentsCheckText"]
     if showReagentsLabel then
@@ -633,6 +664,15 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     showReagents:SetScript("OnClick", function(self)
         Artisan.UI:SetShowReagents(self:GetChecked())
     end)
+
+    self.FilterChecks = {
+        { name = "bop", btn = showBop },
+        { name = "known", btn = showKnown },
+        { name = "skill", btn = showSkill },
+        { name = "gain", btn = showSkillGain },
+        { name = "reagents", btn = showReagents },
+    }
+    self:LayoutFilterChecks()
 
     local header = CreateFrame("Frame", nil, parentFrame)
     header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, HEADER.headerY)
@@ -1510,6 +1550,51 @@ function Artisan.UI:SetShowReagents(show)
     self:RefreshList()
 end
 
+function Artisan.UI:LayoutFilterChecks()
+    local checks = self.FilterChecks
+    if not checks or #checks == 0 then return end
+    local frame = self.MainFrame
+    if not frame then return end
+
+    if self.Compact then
+        local width = frame:GetWidth() or LAYOUT.compactWidth
+        local margin = 10
+        local avail = width - margin * 2
+        local rows = {}
+        local cur = {}
+        for _, ent in ipairs(checks) do
+            tinsert(cur, ent)
+            if #cur == 3 then
+                tinsert(rows, cur)
+                cur = {}
+            end
+        end
+        if #cur > 0 then tinsert(rows, cur) end
+        for r, row in ipairs(rows) do
+            local m = #row
+            local slot = avail / m
+            local y = HEADER.checkY - (r - 1) * 16
+            for j, ent in ipairs(row) do
+                local btn = ent.btn
+                local x = margin + slot * (j - 1) + (slot - btn:GetWidth()) / 2
+                btn:ClearAllPoints()
+                btn:SetPoint("TOPLEFT", frame, "TOPLEFT", x, y)
+            end
+        end
+    else
+        for _, ent in ipairs(checks) do
+            local btn = ent.btn
+            btn:ClearAllPoints()
+            btn:SetPoint("TOPLEFT", frame, "TOPLEFT", FILTER_POS[ent.name] or 10, HEADER.checkY)
+        end
+    end
+end
+
+function Artisan.UI:SetShowSkillGain(show)
+    self.ShowSkillGain = show and true or false
+    self:RefreshList()
+end
+
 function Artisan.UI:HasAllReagents(row)
     local reagents = row and row.reagents
     if not reagents or #reagents == 0 then return true end
@@ -1539,6 +1624,31 @@ function Artisan.UI:GetProfSkill(profID)
     return profSkillCache[profID]
 end
 
+function Artisan.UI:DumpSkills()
+    local lines = {}
+    if GetNumSkillLines then
+        local n = GetNumSkillLines()
+        for i = 1, n do
+            local a = {}
+            local c = select("#", GetSkillLineInfo(i))
+            for j = 1, c do
+                a[j] = tostring(select(j, GetSkillLineInfo(i)))
+            end
+            tinsert(lines, "[" .. i .. "] " .. table.concat(a, " | "))
+        end
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan debug] Строки навыков (" .. #lines .. "):|r")
+    for _, l in ipairs(lines) do
+        DEFAULT_CHAT_FRAME:AddMessage("|cffcccccc" .. l .. "|r")
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan debug] Сопоставление с профессиями:|r")
+    for _, prof in ipairs(PROFESSIONS) do
+        local profID = prof.id
+        local name = Artisan.UI:GetProfessionSpell(profID)
+        DEFAULT_CHAT_FRAME:AddMessage(profID .. " => spell='" .. tostring(name) .. "' skill=" .. tostring(Artisan.UI:GetProfSkill(profID)))
+    end
+end
+
 function Artisan.UI:ToggleSort(key)
     if self.SortKey == key then
         self.SortDir = self.SortDir == 1 and -1 or 1
@@ -1559,6 +1669,7 @@ function Artisan.UI:RefreshList()
     local showBop = self.ShowBOP
     local showKnown = self.ShowKnown
     local showSkill = self.ShowSkillAvail
+    local showSkillGain = self.ShowSkillGain
     for i = 1, #self.FullList do
         local row = self.FullList[i]
         if row then
@@ -1570,6 +1681,8 @@ function Artisan.UI:RefreshList()
             elseif showKnown and row.spellID and not Artisan.UI:IsRecipeKnown(row.spellID) then
 
             elseif showSkill and row.skill and Artisan.UI:GetProfSkill(row.profID) < row.skill then
+
+            elseif showSkillGain and row.trivial and Artisan.UI:GetProfSkill(row.profID) >= row.trivial then
 
             elseif self.ShowReagents and not Artisan.UI:HasAllReagents(row) then
 

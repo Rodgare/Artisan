@@ -183,6 +183,7 @@ function Artisan.Pricing:BuildProfessionList(profID)
             ilvl = itemILvl,
             quality = itemQuality,
             skill = src and src.skill,
+            trivial = src and src.trivial,
             skillText = skillText,
             reagents = reagents,
         })

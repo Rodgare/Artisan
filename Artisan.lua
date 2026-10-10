@@ -62,3 +62,12 @@ SlashCmdList["ARTTEST"] = function(msg)
         DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль UI не загружен.")
     end
 end
+
+SLASH_ARTSKILLS1 = "/artskills"
+SlashCmdList["ARTSKILLS"] = function()
+    if Artisan.UI and Artisan.UI.DumpSkills then
+        Artisan.UI:DumpSkills()
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль UI не загружен.")
+    end
+end
