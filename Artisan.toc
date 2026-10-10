@@ -5,7 +5,8 @@
 ## Version: 1.0
 ## SavedVariables: ArtisanDB, ArtisanDebugDB
 ## OptionalDeps: Auctionator
-## X-Sirus-Update: https://github.com/rodgare/Artisan/tree/main
+## X-Sirus-Update: https://github.com/rodgare/Artisan/tree/master
+## X-Sirus-Category: 2
 
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
