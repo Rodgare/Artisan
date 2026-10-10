@@ -18,8 +18,8 @@ mainFrame:SetScript("OnEvent", function(self, event, addonName)
 
             OnTooltipShow = function(tooltip)
                 tooltip:AddLine("Artisan", 1, 1, 1)
-                tooltip:AddLine("Левый клик: Вывести сообщение в чат", 0.7, 0.7, 0.7)
-                tooltip:AddLine("Правый клик: Скрыть иконку", 0.7, 0.7, 0.7)
+                tooltip:AddLine("ЛКМ: Открыть главное окно ", 0.7, 0.7, 0.7)
+                -- tooltip:AddLine("Правый клик: Скрыть иконку", 0.7, 0.7, 0.7)
             end,
 
             OnClick = function(_, button)
