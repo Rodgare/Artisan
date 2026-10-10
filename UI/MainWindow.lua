@@ -66,7 +66,7 @@ local function QualityColor(rarity)
     return 1, 1, 1
 end
 
-local REAGENT_ICON_SIZE = 23
+local REAGENT_ICON_SIZE = 22
 local REAGENT_ICON_GAP = 2
 local MAX_REAGENT_ICONS = 8
 local REAGENT_X = LAYOUT.reagentX
@@ -617,6 +617,19 @@ function Artisan.UI:CreateRecipeList(parentFrame)
         Artisan.UI:SetShowSkillAvail(self:GetChecked())
     end)
 
+    local showReagents = CreateFrame("CheckButton", "ArtisanShowReagentsCheck", parentFrame, "UICheckButtonTemplate")
+    showReagents:SetSize(20, 20)
+    showReagents:SetPoint("LEFT", showSkill, "RIGHT", 150, 0)
+    showReagents:SetChecked(false)
+    local showReagentsLabel = _G["ArtisanShowReagentsCheckText"]
+    if showReagentsLabel then
+        showReagentsLabel:SetText("Есть реагенты")
+        showReagentsLabel:SetTextColor(0.7, 0.7, 0.7)
+    end
+    showReagents:SetScript("OnClick", function(self)
+        Artisan.UI:SetShowReagents(self:GetChecked())
+    end)
+
     local header = CreateFrame("Frame", nil, parentFrame)
     header:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, HEADER.headerY)
     header:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -10, 0)
@@ -1130,9 +1143,17 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             countText:SetJustifyH("LEFT")
             countText:SetJustifyV("TOP")
             local fontName = countText:GetFont()
-            countText:SetFont(fontName, 11, "OUTLINE")
+            countText:SetFont(fontName, 10)
             countText:SetTextColor(1, 1, 1)
             icon.countText = countText
+
+            local reqText = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            reqText:SetAllPoints(icon)
+            reqText:SetJustifyH("LEFT")
+            reqText:SetJustifyV("BOTTOM")
+            reqText:SetFont(fontName, 10)
+            reqText:SetTextColor(1, 1, 1)
+            icon.reqText = reqText
 
             icon:SetScript("OnEnter", function(self)
                 if not self.data then return end
@@ -1433,6 +1454,22 @@ function Artisan.UI:SetShowSkillAvail(show)
     self:RefreshList()
 end
 
+function Artisan.UI:SetShowReagents(show)
+    self.ShowReagents = show and true or false
+    self:RefreshList()
+end
+
+function Artisan.UI:HasAllReagents(row)
+    local reagents = row and row.reagents
+    if not reagents or #reagents == 0 then return true end
+    for _, rg in ipairs(reagents) do
+        if (GetItemCount(rg.itemID) or 0) < (rg.count or 0) then
+            return false
+        end
+    end
+    return true
+end
+
 function Artisan.UI:GetProfSkill(profID)
     if profSkillCache[profID] ~= nil then return profSkillCache[profID] end
     local level = nil
@@ -1482,6 +1519,8 @@ function Artisan.UI:RefreshList()
             elseif showKnown and row.spellID and not Artisan.UI:IsRecipeKnown(row.spellID) then
 
             elseif showSkill and row.skill and Artisan.UI:GetProfSkill(row.profID) < row.skill then
+
+            elseif self.ShowReagents and not Artisan.UI:HasAllReagents(row) then
 
             else
                 tinsert(list, row)
@@ -1628,11 +1667,14 @@ function Artisan.UI:UpdateScroll()
                             icon.tex:SetVertexColor(0.62, 0.62, 0.62, 0.85)
                         end
                         icon.data = rg
-                        icon.countText:SetText(have .. "/" .. need)
+                        icon.countText:SetText(have > 99 and "99+" or tostring(have))
+                        icon.reqText:SetText(tostring(need))
                         if ok then
                             icon.countText:SetTextColor(1, 1, 1)
+                            icon.reqText:SetTextColor(1, 1, 1)
                         else
-                            icon.countText:SetTextColor(1, 0.5, 0.5)
+                            icon.countText:SetTextColor(1, 1, 1)
+                            icon.reqText:SetTextColor(1, 0.5, 0.5)
                         end
                         icon:Show()
                     end
