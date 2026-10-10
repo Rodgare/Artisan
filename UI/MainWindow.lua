@@ -228,8 +228,8 @@ function Artisan.UI:ApplyLayout()
 
     local colX, colW, nameW
     if compact then
-        local nw = 160
-        colX = { name = 28, profit = 28 + nw + 10 }
+        local nw = 175
+        colX = { name = 28, profit = 198 }
         colW = { name = nw, profit = 70 }
         nameW = colW.name
     else
@@ -1346,7 +1346,11 @@ function Artisan.UI:BuildCategoryBar()
 
     local bar = self.CategoryBar
     local pad = 8
-    local maxX = math.max(100, bar:GetWidth() or 400)
+    local maxX = 100
+    if self.MainFrame then
+        local fw = self.MainFrame:GetWidth() or LAYOUT.frameWidth
+        maxX = math.max(100, fw - 380)
+    end
 
     local x = 0
     local y = 0
