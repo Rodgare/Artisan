@@ -28,6 +28,7 @@ local COL_ORDER = { "cost", "sell", "profit", "skill" }
 
 local ROW_HEIGHT = 21
 local VISIBLE_ROWS = 22
+local COMPACT_ROWS = 21
 local WHEEL_STEP = 5
 local SKILL_FONT_SIZE = 8
 
@@ -225,6 +226,7 @@ function Artisan.UI:ApplyLayout()
     if not scroll then return end
 
     local compact = self.Compact == true
+    self.VisibleRows = compact and COMPACT_ROWS or VISIBLE_ROWS
 
     if self.HeaderFrame then
         local hy = HEADER.headerY
@@ -688,17 +690,17 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     scrollFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 30)
 
     local footer = CreateFrame("Frame", nil, parentFrame)
-    footer:SetPoint("BOTTOMLEFT", parentFrame, "BOTTOMLEFT", 10, 3)
-    footer:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 3)
-    footer:SetHeight(14)
+    footer:SetPoint("BOTTOMLEFT", parentFrame, "BOTTOMLEFT", 10, 4)
+    footer:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 4)
+    footer:SetHeight(20)
 
-    local verTxt = footer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local verTxt = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     verTxt:SetPoint("BOTTOMLEFT", footer, "BOTTOMLEFT", 0, 0)
     verTxt:SetJustifyH("LEFT")
     verTxt:SetText("Artisan " .. (GetAddOnMetadata("Artisan", "Version") or "?"))
     verTxt:SetTextColor(0.6, 0.6, 0.6)
 
-    local contactTxt = footer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local contactTxt = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     contactTxt:SetPoint("BOTTOMRIGHT", footer, "BOTTOMRIGHT", 0, 0)
     contactTxt:SetJustifyH("RIGHT")
     contactTxt:SetText("Отправляйте баги, предложения, благодарности на Coda x3")
@@ -1264,7 +1266,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     self.ScrollBar = scrollBar
 
     local function ClampOffset(offset, totalItems)
-        local maxOffset = math.max(0, totalItems - VISIBLE_ROWS)
+        local maxOffset = math.max(0, totalItems - Artisan.UI.VisibleRows)
         if offset < 0 then offset = 0 end
         if offset > maxOffset then offset = maxOffset end
         return offset
@@ -1770,7 +1772,8 @@ function Artisan.UI:UpdateScroll()
     if not self.CurrentList or not self.ScrollFrame then return end
 
     local totalItems = #self.CurrentList
-    local maxOffset = math.max(0, totalItems - VISIBLE_ROWS)
+    local visible = self.VisibleRows or VISIBLE_ROWS
+    local maxOffset = math.max(0, totalItems - visible)
     local offset = FauxScrollFrame_GetOffset(self.ScrollFrame)
     if offset < 0 then offset = 0 end
     if offset > maxOffset then offset = maxOffset end
@@ -1778,7 +1781,7 @@ function Artisan.UI:UpdateScroll()
 
     if self.ScrollBar then
         local scrollBar = self.ScrollBar
-        if totalItems > VISIBLE_ROWS then
+        if totalItems > visible then
             scrollBar:Show()
             scrollBar:SetMinMaxValues(0, maxOffset)
             scrollBar:SetValueStep(1)
@@ -1788,7 +1791,7 @@ function Artisan.UI:UpdateScroll()
         end
     end
 
-    for i = 1, VISIBLE_ROWS do
+    for i = 1, visible do
         local index = offset + i
         local data = self.CurrentList[index]
         local row = self.RowFrames[i]
@@ -1797,7 +1800,7 @@ function Artisan.UI:UpdateScroll()
             row:Show()
 
             row.icon:SetTexture(data.itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
-            row.name:SetText((data.itemName or ("ID: " .. data.itemID)) .. " [" .. (data.itemID or "?") .. "]")
+            row.name:SetText(data.itemName or ("ID: " .. (data.itemID or "?")))
             local kr, kg, kb = QualityColor(data.quality)
             row.name:SetTextColor(kr, kg, kb, 1)
             row.ilvl:SetText(data.ilvl and data.ilvl > 0 and tostring(data.ilvl) or "")
@@ -1883,6 +1886,15 @@ function Artisan.UI:UpdateScroll()
             row:Hide()
             row.craftBtn:Hide()
             row.reagentsBtn:Hide()
+        end
+    end
+
+    for i = visible + 1, VISIBLE_ROWS do
+        local row = self.RowFrames[i]
+        if row then
+            row:Hide()
+            if row.craftBtn then row.craftBtn:Hide() end
+            if row.reagentsBtn then row.reagentsBtn:Hide() end
         end
     end
 end
