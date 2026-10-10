@@ -215,10 +215,11 @@ function Artisan.UI:ApplyLayout()
     local W = targetW
     local rw = targetW - 38
 
-    local showCol = { name = true, profit = true, ilvl = true }
+    local showCol = { name = true, profit = true }
     if not compact then
         showCol.cost = true
         showCol.sell = true
+        showCol.ilvl = true
         showCol.skill = true
     end
     local reagentShown = not compact
@@ -227,9 +228,9 @@ function Artisan.UI:ApplyLayout()
 
     local colX, colW, nameW
     if compact then
-        local nw = 150
-        colX = { name = 28, ilvl = 28 + nw + 8, profit = 28 + nw + 8 + 44 + 10 }
-        colW = { name = nw, ilvl = 44, profit = 90 }
+        local nw = 160
+        colX = { name = 28, profit = 28 + nw + 10 }
+        colW = { name = nw, profit = 70 }
         nameW = colW.name
     else
         colX = {
