@@ -27,7 +27,7 @@ local CTRL = { rightPad = 8, gap = 4, buyW = 62, craftW = 56, iconW = 23, iconGa
 local COL_ORDER = { "cost", "sell", "profit", "skill" }
 
 local ROW_HEIGHT = 21
-local VISIBLE_ROWS = 21
+local VISIBLE_ROWS = 22
 local WHEEL_STEP = 5
 local SKILL_FONT_SIZE = 8
 
@@ -47,9 +47,9 @@ local HEADER = {
 
 local FILTER_POS = {
     bop      = 10,
-    known    = 160,
-    skill    = 250,
-    gain     = 400,
+    known    = 165,
+    skill    = 280,
+    gain     = 410,
     reagents = 510,
 }
 
@@ -669,11 +669,11 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     end)
 
     self.FilterChecks = {
-        { name = "bop", btn = showBop },
-        { name = "known", btn = showKnown },
-        { name = "skill", btn = showSkill },
-        { name = "gain", btn = showSkillGain },
-        { name = "reagents", btn = showReagents },
+        { name = "bop", btn = showBop, label = _G["ArtisanShowBopCheckText"] },
+        { name = "known", btn = showKnown, label = _G["ArtisanShowKnownCheckText"] },
+        { name = "skill", btn = showSkill, label = _G["ArtisanShowSkillCheckText"] },
+        { name = "gain", btn = showSkillGain, label = _G["ArtisanShowSkillGainCheckText"] },
+        { name = "reagents", btn = showReagents, label = _G["ArtisanShowReagentsCheckText"] },
     }
     self:LayoutFilterChecks()
 
@@ -889,7 +889,7 @@ function Artisan.UI:CreateRecipeList(parentFrame)
             end
         end)
 
-        row.reagentsBtn = CreateStyledButton(row, "Купить", 65, function(self)
+        row.reagentsBtn = CreateStyledButton(row, "Реги", 65, function(self)
             if row.data and row.data.reagents then
                 Artisan.UI:SearchReagentsOnAH(row.data.reagents)
             end
@@ -1572,28 +1572,31 @@ function Artisan.UI:LayoutFilterChecks()
     if not frame then return end
 
     if self.Compact then
-        local width = frame:GetWidth() or LAYOUT.compactWidth
         local margin = 10
-        local avail = width - margin * 2
+        local perRow = 3
+        local rowSpacing = 24
+        local boxGap = 6
+        local boxW = 20
         local rows = {}
         local cur = {}
         for _, ent in ipairs(checks) do
             tinsert(cur, ent)
-            if #cur == 3 then
+            if #cur == perRow then
                 tinsert(rows, cur)
                 cur = {}
             end
         end
         if #cur > 0 then tinsert(rows, cur) end
         for r, row in ipairs(rows) do
-            local m = #row
-            local slot = avail / m
-            local y = HEADER.checkY - (r - 1) * 16
+            local x = margin
+            local y = HEADER.checkY - (r - 1) * rowSpacing
             for j, ent in ipairs(row) do
                 local btn = ent.btn
-                local x = margin + slot * (j - 1) + (slot - btn:GetWidth()) / 2
                 btn:ClearAllPoints()
                 btn:SetPoint("TOPLEFT", frame, "TOPLEFT", x, y)
+                local lbl = ent.label
+                local lblW = (lbl and lbl.GetStringWidth and lbl:GetStringWidth()) or 0
+                x = x + boxW + boxGap + lblW + 4
             end
         end
     else
