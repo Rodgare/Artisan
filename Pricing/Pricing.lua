@@ -10,6 +10,90 @@ local subTypeCache = {}
 local ilvlCache = {}
 local qualityCache = {}
 
+local ITEM_CLASS_CONSUMABLE = 0
+local ALCH_SPEC = {
+    potions       = { chance = 0.15, label = "Мастер зелий",       subsPat = { "зель", "potion", "фляг", "flask" } },
+    elixirs       = { chance = 0.10, label = "Мастер эликсиров",   subsPat = { "эликсир", "элексир", "настой", "elixir" } },
+    transmutation = { chance = 0.15, label = "Мастер трансмутации", nonConsumable = true },
+}
+local subNameToId = {}
+local craftSubCache = {}
+local resolvedSubs = {}
+
+local function EnsureSubMap()
+    if next(subNameToId) ~= nil then return end
+    for i = 0, 40 do
+        local s = GetItemSubClassInfo(ITEM_CLASS_CONSUMABLE, i)
+        if s and s ~= "" then subNameToId[s] = i end
+    end
+end
+
+local function FindSubId(...)
+    EnsureSubMap()
+    for n = 1, select("#", ...) do
+        local pat = select(n, ...)
+        for name, id in pairs(subNameToId) do
+            if name:lower():find(pat, 1, true) then return id end
+        end
+    end
+    return nil
+end
+
+local function GetCraftSubClass(itemID)
+    if craftSubCache[itemID] ~= nil then return craftSubCache[itemID] end
+    EnsureSubMap()
+    local itemType = select(6, GetItemInfo(itemID))
+    local itemSub = select(7, GetItemInfo(itemID))
+    if itemType and itemType == GetItemClassInfo(ITEM_CLASS_CONSUMABLE) and subNameToId[itemSub] ~= nil then
+        craftSubCache[itemID] = subNameToId[itemSub]
+    else
+        craftSubCache[itemID] = -1
+    end
+    return craftSubCache[itemID]
+end
+
+local function ResolveSubs(specKey)
+    if resolvedSubs[specKey] then return resolvedSubs[specKey] end
+    local cfg = ALCH_SPEC[specKey]
+    local ids = {}
+    if not cfg.nonConsumable then
+        for _, pat in ipairs(cfg.subsPat) do
+            local id = FindSubId(pat)
+            if id then ids[id] = true end
+        end
+    end
+    resolvedSubs[specKey] = ids
+    return ids
+end
+
+function Artisan.Pricing:GetAlchemySpec()
+    ArtisanDB = ArtisanDB or {}
+    return ALCH_SPEC[ArtisanDB.alchemySpec] and ArtisanDB.alchemySpec or nil
+end
+
+function Artisan.Pricing:GetAlchemySpecLabel()
+    local s = self:GetAlchemySpec()
+    return s and ALCH_SPEC[s].label or "Нет"
+end
+
+function Artisan.Pricing:SetAlchemySpec(spec)
+    ArtisanDB = ArtisanDB or {}
+    ArtisanDB.alchemySpec = ALCH_SPEC[spec] and spec or nil
+end
+
+function Artisan.Pricing:GetYieldMultiplier(itemID)
+    local s = self:GetAlchemySpec()
+    if not s then return 1 end
+    local cfg = ALCH_SPEC[s]
+    local sub = GetCraftSubClass(itemID)
+    if cfg.nonConsumable then
+        if sub == -1 then return 1 + cfg.chance end
+        return 1
+    end
+    if ResolveSubs(s)[sub] then return 1 + cfg.chance end
+    return 1
+end
+
 local maxSkill = nil
 local function GetMaxSkill()
     if maxSkill ~= nil then return maxSkill end
@@ -52,7 +136,8 @@ function Artisan.Pricing:BuildProfessionList(profID)
             end
         end
 
-        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
+        local yieldMult = self:GetYieldMultiplier(data.itemID)
+        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount * yieldMult
         local profit = (sellPrice * 0.95) - totalCost -- 0.95 % аукциона
 
         local itemName, itemTexture, itemType, itemSubType, itemILvl, itemQuality = GetItemInfoCached(data.itemID)
@@ -94,6 +179,7 @@ function Artisan.Pricing:BuildProfessionList(profID)
             cost = totalCost,
             sell = sellPrice,
             profit = profit,
+            yield = yieldMult,
             ilvl = itemILvl,
             quality = itemQuality,
             skill = src and src.skill,
@@ -141,7 +227,8 @@ function Artisan.Pricing:RefreshItemPrice(itemID)
                             end
                         end
 
-                        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount
+                        local yieldMult = self:GetYieldMultiplier(data.itemID)
+                        local sellPrice = (Artisan.Auctionator:GetItemPrice(data.itemID) or 0) * data.craftCount * yieldMult
                         local profit = (sellPrice * 0.95) - totalCost
 
                         row.cost = totalCost

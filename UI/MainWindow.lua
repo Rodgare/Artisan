@@ -152,6 +152,10 @@ function Artisan.UI:CreateMainWindow()
     end)
 
     frame:SetScript("OnShow", function()
+        Artisan.UI:DetectAlchemySpec()
+        if Artisan.Pricing and Artisan.Pricing.ClearAll then
+            Artisan.Pricing:ClearAll()
+        end
         Artisan.UI:InitList()
         Artisan.UI:ScanKnownRecipes()
         Artisan.UI:ApplyLayout()
@@ -1119,6 +1123,21 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                 GameTooltip:AddLine("Нет сохранённых продаж", 0.7, 0.7, 0.7)
                 GameTooltip:AddLine("Прибыль за крафт: " .. Artisan.Utils:FormatMoney(row.data.profit), 1, 0.82, 0)
             end
+            if row.data and row.data.profID == "Alchemy" and Artisan.Pricing and Artisan.Pricing:GetAlchemySpec() then
+                local label = Artisan.Pricing:GetAlchemySpecLabel()
+                local mult = row.data.yield or 1
+                local line = label
+                if mult > 1 then
+                    line = line .. " (выход ×" .. string.format("%.2f", mult) .. ")"
+                end
+                GameTooltip:AddLine(line, 0.6, 0.9, 0.6)
+                if mult > 1 then
+                    local baseSell = row.data.sell / mult
+                    local baseProfit = (baseSell * 0.95) - row.data.cost
+                    local bonus = row.data.profit - baseProfit
+                    GameTooltip:AddLine("Бонус спец: +" .. Artisan.Utils:FormatMoney(bonus) .. " к прибыли", 0.6, 0.9, 0.6)
+                end
+            end
             GameTooltip:Show()
         end)
         profitButton:SetScript("OnLeave", function()
@@ -1452,6 +1471,45 @@ function Artisan.UI:SetShowSkillAvail(show)
         wipe(profSkillCache)
     end
     self:RefreshList()
+end
+
+local function MatchSpecName(name)
+    if not name then return nil end
+    local ln = name:lower()
+    if ln:find("зели") or ln:find("potion") then return "potions" end
+    if ln:find("настои") or ln:find("настоев") or ln:find("эликсир") or ln:find("элексир") or ln:find("elixir") then return "elixirs" end
+    if ln:find("трансмутац") or ln:find("transmut") then return "transmutation" end
+    return nil
+end
+
+local KNOWN_SPEC = {
+    [28677] = "elixirs",
+}
+
+function Artisan.UI:DetectAlchemySpec()
+    local spec = nil
+    if IsSpellKnown then
+        for skillID, s in pairs(KNOWN_SPEC) do
+            if IsSpellKnown(skillID) then
+                spec = s
+                break
+            end
+        end
+    end
+    if not spec and GetNumSkillLines then
+        for i = 1, GetNumSkillLines() do
+            spec = MatchSpecName(select(1, GetSkillLineInfo(i)))
+            if spec then break end
+        end
+    end
+    if Artisan.Pricing then
+        Artisan.Pricing:SetAlchemySpec(spec)
+        if spec and DEFAULT_CHAT_FRAME then
+            local label = Artisan.Pricing:GetAlchemySpecLabel()
+            DEFAULT_CHAT_FRAME:AddMessage("|cff88ff88[Artisan]:|r Алхимическая специализация: " .. label)
+        end
+    end
+    return spec
 end
 
 function Artisan.UI:SetShowReagents(show)
