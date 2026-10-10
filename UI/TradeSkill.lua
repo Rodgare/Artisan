@@ -5,7 +5,7 @@ local function PrintSelectedRecipeReagents()
     if not selectionIndex or selectionIndex == 0 then return end
 
     local numReagents = GetTradeSkillNumReagents(selectionIndex)
-    print("--- Выбран рецепт #" .. selectionIndex .. " (Реагентов: " .. numReagents .. ") ---")
+    -- print("--- Выбран рецепт #" .. selectionIndex .. " (Реагентов: " .. numReagents .. ") ---")
 
     for i = 1, numReagents do
         local name, _, count = GetTradeSkillReagentInfo(selectionIndex, i)
@@ -13,7 +13,7 @@ local function PrintSelectedRecipeReagents()
 
         local itemID = link and tonumber(link:match("item:(%d+)"))
 
-        print(string.format("  Реагент %d: %s (x%d) [ID: %s]", i, name or "???", count or 0, itemID or "nil"))
+        -- print(string.format("  Реагент %d: %s (x%d) [ID: %s]", i, name or "???", count or 0, itemID or "nil"))
     end
 end
 
