@@ -63,6 +63,29 @@ SlashCmdList["ARTTEST"] = function(msg)
     end
 end
 
+SLASH_ARTKNOWN1 = "/artknown"
+SlashCmdList["ARTKNOWN"] = function(msg)
+    if Artisan.UI and Artisan.UI.DiagKnown then
+        Artisan.UI:DiagKnown(msg)
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль UI не загружен.")
+    end
+end
+
+SLASH_ARTREF1 = "/artrefknown"
+SlashCmdList["ARTREF"] = function()
+    if Artisan.UI and Artisan.UI.ScanKnownRecipes then
+        Artisan.UI:ScanKnownRecipes(true)
+        if Artisan.UI.MainFrame and Artisan.UI.MainFrame:IsShown() then
+            Artisan.UI:UpdateScroll()
+            Artisan.UI:RefreshList()
+        end
+        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r Список изученных пересчитан по открытому окну профессии.")
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Модуль UI не загружен.")
+    end
+end
+
 SLASH_ARTSKILLS1 = "/artskills"
 SlashCmdList["ARTSKILLS"] = function()
     if Artisan.UI and Artisan.UI.DumpSkills then

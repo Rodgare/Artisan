@@ -115,6 +115,33 @@ function Artisan.UI:InitKnownRecipesDB()
     end
 end
 
+function Artisan.UI:IsRecipeKnown(spellID)
+    return Artisan.UI.KnownRecipes[spellID] == true
+end
+
+function Artisan.UI:AddRecipeSourcesTooltip(spellID)
+    if not Artisan.RecipeSources then return end
+    local data = Artisan.RecipeSources[spellID]
+    if not data or not data.hint or data.hint == "" then return end
+
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Как получить:", 1, 0.82, 0)
+    GameTooltip:AddLine("  " .. data.hint, 1, 1, 1)
+end
+
+function Artisan.UI:GetKnownChars(spellID)
+    local chars = {}
+    ArtisanDB = ArtisanDB or {}
+    if ArtisanDB.knownRecipes then
+        for char, recipes in pairs(ArtisanDB.knownRecipes) do
+            if recipes[spellID] then
+                tinsert(chars, char)
+            end
+        end
+    end
+    return chars
+end
+
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("ADDON_LOADED")
 initFrame:RegisterEvent("PLAYER_LOGIN")
@@ -242,8 +269,9 @@ function Artisan.UI:ApplyLayout()
     local W = targetW
     local rw = targetW - 38
 
-    local showCol = { name = true, profit = true }
+    local showCol = { name = true, cost = true }
     if not compact then
+        showCol.profit = true
         showCol.cost = true
         showCol.sell = true
         showCol.ilvl = true
@@ -256,8 +284,8 @@ function Artisan.UI:ApplyLayout()
     local colX, colW, nameW
     if compact then
         local nw = 175
-        colX = { name = 28, profit = 198 }
-        colW = { name = nw, profit = 70 }
+        colX = { name = 28, cost = 198 }
+        colW = { name = nw, cost = 70 }
         nameW = colW.name
     else
         colX = {
@@ -997,16 +1025,17 @@ function Artisan.UI:CreateRecipeList(parentFrame)
 
     Artisan.UI.CurrentCharKey = Artisan.UI:GetCurrentCharKey()
 
-    function Artisan.UI:ScanKnownRecipes()
+    function Artisan.UI:ScanKnownRecipes(full)
         if not TradeSkillFrame or not TradeSkillFrame:IsShown() then return end
         local numSkills = GetNumTradeSkills()
         if numSkills == 0 then return end
 
         local profName = GetTradeSkillLine()
+        local charKey = Artisan.UI.CurrentCharKey or Artisan.UI:GetCurrentCharKey()
         Artisan.UI.KnownRecipesByProf[profName] = Artisan.UI.KnownRecipesByProf[profName] or {}
-        Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey] = Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey] or {}
+        Artisan.UI.KnownRecipesByChar[charKey] = Artisan.UI.KnownRecipesByChar[charKey] or {}
 
-        local newRecipes = {}
+        local windowSet = {}
         for i = 1, numSkills do
             local skillName, skillType = GetTradeSkillInfo(i)
             if skillType ~= "header" and skillName then
@@ -1022,20 +1051,68 @@ function Artisan.UI:CreateRecipeList(parentFrame)
                     end
                 end
                 if spellID then
-                    Artisan.UI.KnownRecipes[spellID] = true
-                    Artisan.UI.KnownRecipesByProf[profName][spellID] = true
-                    Artisan.UI.KnownRecipesByChar[Artisan.UI.CurrentCharKey][spellID] = true
-                    newRecipes[spellID] = true
+                    windowSet[spellID] = true
                 end
             end
         end
 
-        if next(newRecipes) then
+        -- профиль этого окна среди БД (по отображаемому имени)
+        local dbProfID = nil
+        if PROFESSIONS then
+            for _, prof in ipairs(PROFESSIONS) do
+                if Artisan.UI:GetProfessionSpell(prof.id) == profName then
+                    dbProfID = prof.id
+                    break
+                end
+            end
+        end
+
+        if full then
+            -- полный пересчёт: известны только те, что реально открыты в окне
+            Artisan.UI.KnownRecipesByProf[profName] = {}
+            for spellID in pairs(windowSet) do
+                Artisan.UI.KnownRecipes[spellID] = true
+                Artisan.UI.KnownRecipesByProf[profName][spellID] = true
+                Artisan.UI.KnownRecipesByChar[charKey][spellID] = true
+            end
+            -- убрать у персонажа записи этого профиля, которых нет в окне
+            local profSpells = {}
+            if dbProfID and Artisan.RecipeDB and Artisan.RecipeDB[dbProfID] then
+                profSpells = Artisan.RecipeDB[dbProfID]
+            else
+                for _, s in pairs(Artisan.UI.KnownRecipesByChar[charKey]) do profSpells[s] = true end
+            end
+
             ArtisanDB = ArtisanDB or {}
             ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
-            ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] = ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey] or {}
-            for spellID in pairs(newRecipes) do
-                ArtisanDB.knownRecipes[Artisan.UI.CurrentCharKey][spellID] = true
+            ArtisanDB.knownRecipes[charKey] = ArtisanDB.knownRecipes[charKey] or {}
+            for spellID in pairs(profSpells) do
+                -- считаем "известность" только по окну, но не трогаем чужие профили
+                if Artisan.UI.KnownRecipes[spellID] == true and not windowSet[spellID] then
+                    ArtisanDB.knownRecipes[charKey][spellID] = nil
+                    Artisan.UI.KnownRecipes[spellID] = nil
+                    Artisan.UI.KnownRecipesByChar[charKey][spellID] = nil
+                elseif windowSet[spellID] then
+                    ArtisanDB.knownRecipes[charKey][spellID] = true
+                    Artisan.UI.KnownRecipes[spellID] = true
+                    Artisan.UI.KnownRecipesByChar[charKey][spellID] = true
+                end
+            end
+            for spellID in pairs(windowSet) do
+                ArtisanDB.knownRecipes[charKey][spellID] = true
+            end
+        else
+            -- обычный (безопасный) режим: только добавлять, не удалять
+            for spellID in pairs(windowSet) do
+                Artisan.UI.KnownRecipes[spellID] = true
+                Artisan.UI.KnownRecipesByProf[profName][spellID] = true
+                Artisan.UI.KnownRecipesByChar[charKey][spellID] = true
+            end
+            ArtisanDB = ArtisanDB or {}
+            ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
+            ArtisanDB.knownRecipes[charKey] = ArtisanDB.knownRecipes[charKey] or {}
+            for spellID in pairs(windowSet) do
+                ArtisanDB.knownRecipes[charKey][spellID] = true
             end
         end
     end
@@ -1051,39 +1128,12 @@ function Artisan.UI:CreateRecipeList(parentFrame)
     local scanFrame = CreateFrame("Frame")
     scanFrame:RegisterEvent("TRADE_SKILL_SHOW")
     scanFrame:RegisterEvent("TRADE_SKILL_UPDATE")
-    scanFrame:SetScript("OnEvent", function()
-        Artisan.UI:ScanKnownRecipes()
+    scanFrame:SetScript("OnEvent", function(self, event)
+        Artisan.UI:ScanKnownRecipes(event == "TRADE_SKILL_SHOW")
         if Artisan.UI.MainFrame and Artisan.UI.MainFrame:IsShown() then
             Artisan.UI:UpdateScroll()
         end
     end)
-
-    function Artisan.UI:IsRecipeKnown(spellID)
-        return Artisan.UI.KnownRecipes[spellID] == true
-    end
-
-    function Artisan.UI:AddRecipeSourcesTooltip(spellID)
-        if not Artisan.RecipeSources then return end
-        local data = Artisan.RecipeSources[spellID]
-        if not data or not data.hint or data.hint == "" then return end
-
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Как получить:", 1, 0.82, 0)
-        GameTooltip:AddLine("  " .. data.hint, 1, 1, 1)
-    end
-
-    function Artisan.UI:GetKnownChars(spellID)
-        local chars = {}
-        ArtisanDB = ArtisanDB or {}
-        if ArtisanDB.knownRecipes then
-            for char, recipes in pairs(ArtisanDB.knownRecipes) do
-                if recipes[spellID] then
-                    tinsert(chars, char)
-                end
-            end
-        end
-        return chars
-    end
 
     for i = 1, VISIBLE_ROWS do
         local row = self.RowFrames[i]
@@ -1686,6 +1736,85 @@ function Artisan.UI:DumpSkills()
     end
 end
 
+function Artisan.UI:DiagKnown(arg)
+    local function log(msg)
+        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan known]|r " .. msg)
+    end
+
+    local charKey = self:GetCurrentCharKey()
+    local spellID = tonumber(arg or 0) or 0
+
+    if spellID == 0 and arg and arg ~= "" then
+        -- search by name across RecipeDB
+        local needle = arg:lower()
+        for profID, recipes in pairs(Artisan.RecipeDB or {}) do
+            for sid, data in pairs(recipes) do
+                if data.name and data.name:lower():find(needle, 1, true) then
+                    log(string.format("Поиск '%s': [%s] %s (item %s)", arg, sid, data.name, tostring(data.itemID)))
+                    spellID = sid
+                    break
+                end
+            end
+            if spellID > 0 then break end
+        end
+        if spellID == 0 then
+            log("Ничего не найдено по '" .. arg .. "'")
+            return
+        end
+    end
+
+    local profID, itemID, name
+    for pid, recipes in pairs(Artisan.RecipeDB or {}) do
+        local data = recipes[spellID]
+        if data then
+            profID, itemID, name = pid, data.itemID, data.name
+            break
+        end
+    end
+
+    log(string.format("Символ: %s | SpellID: %d", charKey, spellID))
+    log(string.format("   DB: %s / '%s' / itemID=%s", tostring(profID), tostring(name), tostring(itemID)))
+
+    log("   InMemory KnownRecipes: " .. tostring(self:IsRecipeKnown(spellID) and "ИЗВЕСТЕН" or "не известен"))
+    ArtisanDB = ArtisanDB or {}
+    ArtisanDB.knownRecipes = ArtisanDB.knownRecipes or {}
+    local inCurrent = ArtisanDB.knownRecipes[charKey] and ArtisanDB.knownRecipes[charKey][spellID] and true or false
+    log("   SavedVars текущий символ: " .. tostring(inCurrent and "ЕСТЬ" or "нет"))
+    local otherChars = {}
+    for ch, recs in pairs(ArtisanDB.knownRecipes) do
+        if ch ~= charKey and recs[spellID] then tinsert(otherChars, ch) end
+    end
+    if #otherChars > 0 then
+        log("   Изучено другими персонажами: " .. table.concat(otherChars, ", "))
+    end
+
+    if itemID then
+        self:GetSpellIDByItemID(itemID) -- ensure index built
+        log(string.format("   ReverseIndex[%d] -> %s", itemID, tostring(self.ReverseIndex and self.ReverseIndex[itemID])))
+    end
+
+    if TradeSkillFrame and TradeSkillFrame:IsShown() then
+        local inWindow = false
+        local num = GetNumTradeSkills()
+        for i = 1, num do
+            local link = GetTradeSkillRecipeLink(i)
+            if link then
+                local sID = tonumber(link:match("Henchant:(%d+)"))
+                local iID = tonumber(link:match("Hitem:(%d+)"))
+                if (sID and sID == spellID) or (iID and itemID and iID == itemID) then
+                    log(string.format("   Окно профессии (idx %d): НАЙДЕН (spell=%s item=%s)", i, tostring(sID), tostring(iID)))
+                    inWindow = true
+                end
+            end
+        end
+        if not inWindow then
+            log("   Окно профессии: рецепт ОТСУТСТВУЕТ (значит не изучен)")
+        end
+    else
+        log("   Окно профессии не открыто — для проверки изучи признак открой его.")
+    end
+end
+
 function Artisan.UI:ToggleSort(key)
     if self.SortKey == key then
         self.SortDir = self.SortDir == 1 and -1 or 1
@@ -2050,13 +2179,6 @@ function Artisan.UI:DumpTradeSkillFrame()
         DEFAULT_CHAT_FRAME:AddMessage("|cffff8844[Artisan]|r " .. line)
     end
     DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[Artisan]:|r === КОНЕЦ ДАМПА ===")
-
-    ArtisanDebugDB = ArtisanDebugDB or {}
-    ArtisanDebugDB.dump = lines
-    ArtisanDebugDB.founded = founded
-    ArtisanDebugDB.selection = sel
-    ArtisanDebugDB.updated = time()
-    DEFAULT_CHAT_FRAME:AddMessage("|cff888888[Artisan]|r Дамп сохранён в ArtisanDebugDB (файл SavedVariables\\Artisan.lua на диске).")
 end
 
 function Artisan.UI:GetCreateButton()
@@ -2138,6 +2260,26 @@ function Artisan.UI:OpenCraftWindow(spellID, profID, itemID)
         return
     end
 
+    -- если окно этой профессии уже открыто — не кастуем (иначе оно закроется),
+    -- а сразу выбираем рецепт; иначе каст открывает/переключает окно профессии
+    local windowOpen = TradeSkillFrame and TradeSkillFrame:IsShown()
+    local windowMatches = windowOpen and GetTradeSkillLine and (GetTradeSkillLine() == profSpell)
+
+    local function selectRecipe()
+        local idx = Artisan.UI:FindRecipeIndex(itemID, spellID)
+        if idx then
+            TradeSkillFrame_SetSelection(idx)
+            TradeSkillFrame_Update()
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Рецепт не найден в окне профессии.")
+        end
+    end
+
+    if windowMatches then
+        selectRecipe()
+        return
+    end
+
     CastSpellByName(profSpell)
 
     local waitFrame = CreateFrame("Frame")
@@ -2151,13 +2293,7 @@ function Artisan.UI:OpenCraftWindow(spellID, profID, itemID)
         end
         if TradeSkillFrame and TradeSkillFrame:IsShown() then
             self:SetScript("OnUpdate", nil)
-            local idx = Artisan.UI:FindRecipeIndex(itemID, spellID)
-            if idx then
-                TradeSkillFrame_SetSelection(idx)
-                TradeSkillFrame_Update()
-            else
-                DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[Artisan]:|r Рецепт не найден в окне профессии.")
-            end
+            selectRecipe()
         end
     end)
 end

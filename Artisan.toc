@@ -3,7 +3,7 @@
 ## Notes: Помощник ремесленника
 ## Author: Coda
 ## Version: 1.0
-## SavedVariables: ArtisanDB, ArtisanDebugDB
+## SavedVariables: ArtisanDB
 ## OptionalDeps: Auctionator
 ## X-Sirus-Update: https://github.com/rodgare/Artisan/tree/master
 ## X-Sirus-Category: 2
@@ -23,4 +23,3 @@ UI\TradeSkill.lua
 Artisan.lua
 UI\MainWindow.lua
 UI\MiniMapButton.lua
-Debug\AuctionDebug.lua
